@@ -1,0 +1,9 @@
+## Interface: 120000, 120001
+## Title: Nemesis Strongbox by |cFF69CCF0Jeffrey|r
+## Notes: Standalone tracker for Nemesis Strongboxes
+## Author: You
+## Version: 1.0.0
+## SavedVariables: NemesisStrongboxDB
+## OptionalDeps: LibSharedMedia-3.0
+
+NemesisStrongbox.lua
