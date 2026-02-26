@@ -1,7 +1,7 @@
 -- NemesisStrongbox.lua
 -- Reads C_Spell.GetSpellDescription(SPELL_ID) and parses "x / y".
 -- Spell reports REMAINING / TOTAL (starts 4/4 then 3/4...).
--- Spell can sometimes report "0 / 0" on completion/reload; we coerce that to 0 / ONLY_WHEN_TOTAL_EQUALS.
+-- Spell can sometimes report "0 / 0" on completion/reload; we coerce that to 0 / MAX_SUPPORTED_TOTAL.
 --
 -- VISIBILITY:
 --   - Hides ONLY during specific scenario steps in HIDE_IF_SCENARIO_STEP_NAMES
@@ -11,6 +11,7 @@
 -- BEHAVIOR:
 --   - Bar value animates smoothly between changes (instead of jumping)
 --   - Before fading the frame IN, bar snaps to the CURRENT parsed value (no showing stale/cached values)
+--   - Supports dynamic layouts for totals 1..4 (0..3 inner dividers)
 
 local ADDON_NAME = ...
 NemesisStrongboxDB = NemesisStrongboxDB or {}
@@ -44,7 +45,8 @@ local HIDE_IF_SCENARIO_STEP_NAMES = {
 }
 
 local ONLY_IN_SCENARIO_INSTANCES = true
-local ONLY_WHEN_TOTAL_EQUALS = 4
+local MIN_SUPPORTED_TOTAL = 1
+local MAX_SUPPORTED_TOTAL = 4
 
 local UPDATE_INTERVAL = 0.5
 local INSTANCE_LOAD_GRACE_SECONDS = 2.0
@@ -153,8 +155,8 @@ local function ParseRemainingTotalFromSpellDesc()
   local total = SafeToNumber(b)
 
   -- Some end-states/reloads report "0 / 0". Treat as completed with expected total.
-  if remaining == 0 and total == 0 and ONLY_WHEN_TOTAL_EQUALS and ONLY_WHEN_TOTAL_EQUALS > 0 then
-    total = ONLY_WHEN_TOTAL_EQUALS
+  if remaining == 0 and total == 0 and MAX_SUPPORTED_TOTAL and MAX_SUPPORTED_TOTAL > 0 then
+    total = MAX_SUPPORTED_TOTAL
   end
 
   return remaining, total
@@ -431,7 +433,7 @@ textLayer:SetFrameLevel(f:GetFrameLevel() + 10)
 textLayer:EnableMouse(false)
 
 -- =========================
--- Ticks (simple solid lines) — ONLY inner ticks at 1/4, 1/2, 3/4
+-- Ticks (simple solid lines) — dynamic inner ticks for totals 1..4
 -- =========================
 local function MakeTick()
   local t = tickLayer:CreateTexture(nil, "OVERLAY")
@@ -443,6 +445,7 @@ end
 local tickQ1 = MakeTick()
 local tickQ2 = MakeTick()
 local tickQ3 = MakeTick()
+local tickTextures = { tickQ1, tickQ2, tickQ3 }
 
 local function PositionTick(tick, frac)
   tick:ClearAllPoints()
@@ -456,13 +459,24 @@ local function PositionTick(tick, frac)
   tick:SetPoint("CENTER", bar, "LEFT", x, 0)
 end
 
-local function PositionAllTicks()
-  PositionTick(tickQ1, 0.25)
-  PositionTick(tickQ2, 0.50)
-  PositionTick(tickQ3, 0.75)
+local function PositionAllTicks(total)
+  total = tonumber(total) or MAX_SUPPORTED_TOTAL
+  total = Clamp(total, MIN_SUPPORTED_TOTAL, MAX_SUPPORTED_TOTAL)
+
+  local dividerCount = math.max(0, total - 1)
+
+  for i = 1, #tickTextures do
+    local tick = tickTextures[i]
+    if i <= dividerCount then
+      PositionTick(tick, i / total)
+      tick:SetShown(true)
+    else
+      tick:SetShown(false)
+    end
+  end
 end
 
-PositionAllTicks()
+PositionAllTicks(MAX_SUPPORTED_TOTAL)
 
 -- =========================
 -- Text
@@ -548,10 +562,10 @@ end
 -- =========================
 -- Coloring (based on FOUND count)
 -- =========================
-local function SetBarColorForFound(found)
-  if found == 4 then
+local function SetBarColorForFound(found, total)
+  if total > 0 and found >= total then
     bar:SetStatusBarColor(0.6392, 0.2078, 0.9333, 1) -- purple
-  elseif found == 3 then
+  elseif found >= math.max(1, total - 1) then
     bar:SetStatusBarColor(0.0, 0.4392, 0.8666, 1)    -- blue
   else
     bar:SetStatusBarColor(0.1176, 1.0, 0.0, 1)       -- green (0-2)
@@ -624,7 +638,7 @@ local function ApplyVisualsFromFound(found, total, snapBarNow)
   frac = Clamp(frac, 0, 1)
 
   bar:SetMinMaxValues(0, 1)
-  SetBarColorForFound(found)
+  SetBarColorForFound(found, total)
 
   if snapBarNow then
     SetBarInstant(frac)
@@ -632,10 +646,7 @@ local function ApplyVisualsFromFound(found, total, snapBarNow)
     SetBarTarget(frac, BAR_VALUE_ANIM_SECONDS)
   end
 
-  PositionAllTicks()
-  tickQ1:SetShown(true)
-  tickQ2:SetShown(true)
-  tickQ3:SetShown(true)
+  PositionAllTicks(total)
 
   SetFoundAllVisualState(total > 0 and found >= total)
 end
@@ -653,8 +664,8 @@ local function ShouldShowNow(total)
     return false, 'Scenario step matches hidden step "' .. tostring(matched) .. '"'
   end
 
-  if ONLY_WHEN_TOTAL_EQUALS and total ~= ONLY_WHEN_TOTAL_EQUALS then
-    return false, "Total is " .. tostring(total) .. " (expected " .. tostring(ONLY_WHEN_TOTAL_EQUALS) .. ")"
+  if total < MIN_SUPPORTED_TOTAL or total > MAX_SUPPORTED_TOTAL then
+    return false, "Total is " .. tostring(total) .. " (supported totals: " .. tostring(MIN_SUPPORTED_TOTAL) .. "-" .. tostring(MAX_SUPPORTED_TOTAL) .. ")"
   end
 
   return true, nil
@@ -837,7 +848,7 @@ evt:SetScript("OnEvent", function(_, event)
     SchedulePostZoneRetries()
     C_Timer.After(0.1, function()
       ApplyBarPoints()
-      PositionAllTicks()
+      PositionAllTicks(lastGoodTotal)
     end)
   end
   UpdateDisplay()
