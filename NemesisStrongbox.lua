@@ -99,6 +99,9 @@ local BAR_WIDTH, BAR_HEIGHT = 250, 25
 local BAR_POINT, BAR_X, BAR_Y = "CENTER", 0, 0
 local BAR_SCALE = 1
 
+local TICK_WIDTH = 12
+local TICK_HEIGHT_EXTRA = 6
+
 local INSET_L, INSET_R, INSET_T, INSET_B = 4, 4, 4, 4
 
 local BG_R, BG_G, BG_B, BG_A = 0, 0, 0, 0.35
@@ -510,7 +513,10 @@ local function MakeTick()
   local t = tickLayer:CreateTexture(nil, "OVERLAY")
   t:SetAtlas("genericwidgetbar-marker-plain", true)
   t:SetVertexColor(BORDER_R, BORDER_G, BORDER_B, BORDER_A)
-  t:SetSize(Snap(f, 8), Snap(f, (BAR_HEIGHT - INSET_T - INSET_B)))
+  t:SetSize(
+    Snap(f, TICK_WIDTH),
+    Snap(f, (BAR_HEIGHT - INSET_T - INSET_B) + TICK_HEIGHT_EXTRA)
+  )
   return t
 end
 
