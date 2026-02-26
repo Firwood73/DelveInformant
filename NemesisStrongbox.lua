@@ -270,6 +270,11 @@ local function StartFadeTo(targetAlpha, duration, hideOnDone)
     return
   end
 
+  local currentAlpha = Clamp(f:GetAlpha() or 0, 0, 1)
+  if not fadeActive and math.abs(currentAlpha - targetAlpha) < 0.0001 and not hideOnDone then
+    return
+  end
+
   if not f:IsShown() then
     f:Show()
   end
@@ -277,7 +282,7 @@ local function StartFadeTo(targetAlpha, duration, hideOnDone)
   fadeActive = true
   fadeElapsed = 0
   fadeDuration = math.max(0, duration)
-  fadeFrom = Clamp(f:GetAlpha() or 0, 0, 1)
+  fadeFrom = currentAlpha
   fadeTo = targetAlpha
   fadeHideOnDone = hideOnDone
 
@@ -693,6 +698,9 @@ local function ShowFrameWithFadeIfNeeded(dataFresh, foundFresh, totalFresh)
   end
 
   f:Show()
+  if (fadeActive and fadeTo == 1 and not fadeHideOnDone) or ((f:GetAlpha() or 0) >= 0.999 and not fadeActive) then
+    return
+  end
   StartFadeTo(1, FADE_IN_SECONDS, false)
 end
 
@@ -728,6 +736,10 @@ local function UpdateDisplay()
 
   -- If we can't parse yet, keep hidden during grace window
   if not dataFresh and InGraceWindow() then
+    if lastShownState and lastGoodTotal > 0 then
+      ClearHideReason()
+      return
+    end
     HideFrameWithFade()
     ClearHideReason()
     return
