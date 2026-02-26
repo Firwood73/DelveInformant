@@ -153,13 +153,14 @@ local function ParseRemainingTotalFromSpellDesc()
 
   local remaining = SafeToNumber(a)
   local total = SafeToNumber(b)
+  local rawWasZeroZero = (remaining == 0 and total == 0)
 
   -- Some end-states/reloads report "0 / 0". Treat as completed with expected total.
-  if remaining == 0 and total == 0 and MAX_SUPPORTED_TOTAL and MAX_SUPPORTED_TOTAL > 0 then
+  if rawWasZeroZero and MAX_SUPPORTED_TOTAL and MAX_SUPPORTED_TOTAL > 0 then
     total = MAX_SUPPORTED_TOTAL
   end
 
-  return remaining, total
+  return remaining, total, rawWasZeroZero
 end
 
 local function ComputeFound(remaining, total)
@@ -702,22 +703,27 @@ local function UpdateDisplay()
   LogScenarioStepNameIfChanged(false)
 
   local dataFresh = false
-  local remaining, total = ParseRemainingTotalFromSpellDesc()
+  local remaining, total, rawWasZeroZero = ParseRemainingTotalFromSpellDesc()
 
   local found = nil
   local parsedTotal = nil
 
   if remaining ~= nil and total ~= nil and total > 0 then
-    dataFresh = true
-    found = ComputeFound(remaining, total)
-    parsedTotal = total
+    -- While loading into a delve, ignore transient "0 / 0" reads so we don't flash a full bar.
+    if rawWasZeroZero and InGraceWindow() then
+      dataFresh = false
+    else
+      dataFresh = true
+      found = ComputeFound(remaining, total)
+      parsedTotal = total
 
-    lastGoodFound = found
-    lastGoodTotal = total
-    lastGoodFrac  = Clamp(found / total, 0, 1)
+      lastGoodFound = found
+      lastGoodTotal = total
+      lastGoodFrac  = Clamp(found / total, 0, 1)
 
-    -- Normal updates while showing: animate bar smoothly
-    ApplyVisualsFromFound(found, total, false)
+      -- Normal updates while showing: animate bar smoothly
+      ApplyVisualsFromFound(found, total, false)
+    end
   end
 
   -- If we can't parse yet, keep hidden during grace window
