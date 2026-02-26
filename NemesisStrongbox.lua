@@ -1,5 +1,5 @@
 -- NemesisStrongbox.lua
--- Reads C_Spell.GetSpellDescription(SPELL_ID) and parses "x / y".
+-- Reads C_Spell.GetSpellDescription(activeDelveSpellID) and parses "x / y".
 -- Spell reports REMAINING / TOTAL (starts 4/4 then 3/4...).
 -- Spell can sometimes report "0 / 0" on completion/reload; we coerce that to 0 / MAX_SUPPORTED_TOTAL.
 --
@@ -36,7 +36,43 @@ end
 -- =========================
 -- Config
 -- =========================
-local SPELL_ID = 1239535
+local DEFAULT_SPELL_ID = 1239535
+
+local TWW_DELVE_INSTANCE_IDS = {
+  [2664] = "Fungal Folly",
+  [2679] = "Mycomancer Cavern",
+  [2680] = "Earthcrawl Mines",
+  [2681] = "Kriegval's Rest",
+  [2682] = "Zekvir's Lair",
+  [2683] = "The Waterworks",
+  [2684] = "The Dread Pit",
+  [2685] = "Skittering Breach",
+  [2686] = "Nightfall Sanctum",
+  [2687] = "The Sinkhole",
+  [2688] = "The Spiral Weave",
+  [2689] = "Tak-Rethan Abyss",
+  [2690] = "The Underkeep",
+}
+
+local MIDNIGHT_DELVE_INSTANCE_IDS = {
+  [2933] = "Collegiate Calamity",
+  [2952] = "The Shadow Enclave",
+  [2953] = "Parhelion Plaza",
+  [2961] = "Twilight Crypts",
+  [2962] = "Atal'Aman",
+  [2963] = "The Grudge Pit",
+  [2964] = "The Gulf of Memory",
+  [2965] = "Sunkiller Sanctum",
+  [2966] = "Torment's Rise",
+  [2979] = "Shadowguard Point",
+  [3003] = "The Darkway",
+}
+
+local TWW_DELVE_SPELL_ID = 1239535
+local MIDNIGHT_DELVE_SPELL_ID = 1270179
+
+-- TWW delve theme HEX: ffd200
+local TWW_THEME_R, TWW_THEME_G, TWW_THEME_B = 1.0, 0.8235, 0.0
 
 local HIDE_IF_SCENARIO_STEP_NAMES = {
   "Ethereal Routing Station",
@@ -137,9 +173,37 @@ local function InScenarioInstance()
   return instanceType == "scenario"
 end
 
+local function GetCurrentDelveInfo()
+  local _, instanceType, _, _, _, _, _, instanceID = GetInstanceInfo()
+  if instanceType ~= "scenario" then
+    return nil, nil, nil
+  end
+
+  if TWW_DELVE_INSTANCE_IDS[instanceID] then
+    return "tww", instanceID, TWW_DELVE_INSTANCE_IDS[instanceID]
+  end
+
+  if MIDNIGHT_DELVE_INSTANCE_IDS[instanceID] then
+    return "midnight", instanceID, MIDNIGHT_DELVE_INSTANCE_IDS[instanceID]
+  end
+
+  return nil, instanceID, nil
+end
+
+local function GetActiveSpellID()
+  local delveGroup = GetCurrentDelveInfo()
+  if delveGroup == "tww" then
+    return TWW_DELVE_SPELL_ID
+  end
+  if delveGroup == "midnight" then
+    return MIDNIGHT_DELVE_SPELL_ID
+  end
+  return DEFAULT_SPELL_ID
+end
+
 local function GetSpellDesc()
   if not C_Spell or not C_Spell.GetSpellDescription then return nil end
-  local desc = C_Spell.GetSpellDescription(SPELL_ID)
+  local desc = C_Spell.GetSpellDescription(GetActiveSpellID())
   if not desc or desc == "" then return nil end
   return desc
 end
@@ -453,6 +517,22 @@ local tickQ2 = MakeTick()
 local tickQ3 = MakeTick()
 local tickTextures = { tickQ1, tickQ2, tickQ3 }
 
+local function SetTickAndBorderThemeForDelve()
+  local delveGroup = GetCurrentDelveInfo()
+  if delveGroup == "tww" then
+    border:SetBackdropBorderColor(TWW_THEME_R, TWW_THEME_G, TWW_THEME_B, BORDER_A)
+    for i = 1, #tickTextures do
+      tickTextures[i]:SetColorTexture(TWW_THEME_R, TWW_THEME_G, TWW_THEME_B, BORDER_A)
+    end
+    return
+  end
+
+  border:SetBackdropBorderColor(BORDER_R, BORDER_G, BORDER_B, BORDER_A)
+  for i = 1, #tickTextures do
+    tickTextures[i]:SetColorTexture(BORDER_R, BORDER_G, BORDER_B, BORDER_A)
+  end
+end
+
 local function PositionTick(tick, frac)
   tick:ClearAllPoints()
 
@@ -709,6 +789,7 @@ end
 -- =========================
 local function UpdateDisplay()
   LogScenarioStepNameIfChanged(false)
+  SetTickAndBorderThemeForDelve()
 
   local dataFresh = false
   local remaining, total, rawWasZeroZero = ParseRemainingTotalFromSpellDesc()
