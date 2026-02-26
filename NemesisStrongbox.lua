@@ -71,8 +71,8 @@ local MIDNIGHT_DELVE_INSTANCE_IDS = {
 local TWW_DELVE_SPELL_ID = 1239535
 local MIDNIGHT_DELVE_SPELL_ID = 1270179
 
--- TWW delve theme HEX: ffd200
-local TWW_THEME_R, TWW_THEME_G, TWW_THEME_B = 1.0, 0.8235, 0.0
+-- TWW delve theme HEX: 9a693b
+local TWW_THEME_R, TWW_THEME_G, TWW_THEME_B = 0.6039, 0.4118, 0.2314
 
 local HIDE_IF_SCENARIO_STEP_NAMES = {
   "Ethereal Routing Station",
@@ -524,6 +524,7 @@ local function SetTickAndBorderThemeForDelve()
     for i = 1, #tickTextures do
       tickTextures[i]:SetColorTexture(TWW_THEME_R, TWW_THEME_G, TWW_THEME_B, BORDER_A)
     end
+    titleText:SetTextColor(TWW_THEME_R, TWW_THEME_G, TWW_THEME_B, 1)
     return
   end
 
@@ -531,6 +532,7 @@ local function SetTickAndBorderThemeForDelve()
   for i = 1, #tickTextures do
     tickTextures[i]:SetColorTexture(BORDER_R, BORDER_G, BORDER_B, BORDER_A)
   end
+  titleText:SetTextColor(BORDER_R, BORDER_G, BORDER_B, 1)
 end
 
 local function PositionTick(tick, frac)
