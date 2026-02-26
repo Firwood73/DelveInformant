@@ -504,12 +504,13 @@ textLayer:SetFrameLevel(f:GetFrameLevel() + 10)
 textLayer:EnableMouse(false)
 
 -- =========================
--- Ticks (simple solid lines) — dynamic inner ticks for totals 1..4
+-- Ticks (atlas markers) — dynamic inner ticks for totals 1..4
 -- =========================
 local function MakeTick()
   local t = tickLayer:CreateTexture(nil, "OVERLAY")
-  t:SetColorTexture(BORDER_R, BORDER_G, BORDER_B, BORDER_A)
-  t:SetSize(Snap(f, 2), Snap(f, (BAR_HEIGHT - INSET_T - INSET_B)))
+  t:SetAtlas("genericwidgetbar-marker-plain", true)
+  t:SetVertexColor(BORDER_R, BORDER_G, BORDER_B, BORDER_A)
+  t:SetSize(Snap(f, 8), Snap(f, (BAR_HEIGHT - INSET_T - INSET_B)))
   return t
 end
 
@@ -524,7 +525,7 @@ local function SetTickAndBorderThemeForDelve()
   if delveGroup == "tww" then
     border:SetBackdropBorderColor(TWW_THEME_R, TWW_THEME_G, TWW_THEME_B, BORDER_A)
     for i = 1, #tickTextures do
-      tickTextures[i]:SetColorTexture(TWW_THEME_R, TWW_THEME_G, TWW_THEME_B, BORDER_A)
+      tickTextures[i]:SetVertexColor(TWW_THEME_R, TWW_THEME_G, TWW_THEME_B, BORDER_A)
     end
     titleText:SetTextColor(TWW_THEME_R, TWW_THEME_G, TWW_THEME_B, 1)
     return
@@ -532,7 +533,7 @@ local function SetTickAndBorderThemeForDelve()
 
   border:SetBackdropBorderColor(BORDER_R, BORDER_G, BORDER_B, BORDER_A)
   for i = 1, #tickTextures do
-    tickTextures[i]:SetColorTexture(BORDER_R, BORDER_G, BORDER_B, BORDER_A)
+    tickTextures[i]:SetVertexColor(BORDER_R, BORDER_G, BORDER_B, BORDER_A)
   end
   titleText:SetTextColor(BORDER_R, BORDER_G, BORDER_B, 1)
 end
