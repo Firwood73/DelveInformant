@@ -13,7 +13,6 @@
 --   - Before fading the frame IN, bar snaps to the CURRENT parsed value (no showing stale/cached values)
 --   - Supports dynamic layouts for totals 1..4 (0..3 inner dividers)
 
-local ADDON_NAME = ...
 NemesisStrongboxDB = NemesisStrongboxDB or {}
 
 -- =========================
@@ -38,34 +37,35 @@ end
 -- =========================
 local DEFAULT_SPELL_ID = 1239535
 
+-- Membership sets used only for fast instance lookups.
 local TWW_DELVE_INSTANCE_IDS = {
-  [2664] = "Fungal Folly",
-  [2679] = "Mycomancer Cavern",
-  [2680] = "Earthcrawl Mines",
-  [2681] = "Kriegval's Rest",
-  [2682] = "Zekvir's Lair",
-  [2683] = "The Waterworks",
-  [2684] = "The Dread Pit",
-  [2685] = "Skittering Breach",
-  [2686] = "Nightfall Sanctum",
-  [2687] = "The Sinkhole",
-  [2688] = "The Spiral Weave",
-  [2689] = "Tak-Rethan Abyss",
-  [2690] = "The Underkeep",
+  [2664] = true,
+  [2679] = true,
+  [2680] = true,
+  [2681] = true,
+  [2682] = true,
+  [2683] = true,
+  [2684] = true,
+  [2685] = true,
+  [2686] = true,
+  [2687] = true,
+  [2688] = true,
+  [2689] = true,
+  [2690] = true,
 }
 
 local MIDNIGHT_DELVE_INSTANCE_IDS = {
-  [2933] = "Collegiate Calamity",
-  [2952] = "The Shadow Enclave",
-  [2953] = "Parhelion Plaza",
-  [2961] = "Twilight Crypts",
-  [2962] = "Atal'Aman",
-  [2963] = "The Grudge Pit",
-  [2964] = "The Gulf of Memory",
-  [2965] = "Sunkiller Sanctum",
-  [2966] = "Torment's Rise",
-  [2979] = "Shadowguard Point",
-  [3003] = "The Darkway",
+  [2933] = true,
+  [2952] = true,
+  [2953] = true,
+  [2961] = true,
+  [2962] = true,
+  [2963] = true,
+  [2964] = true,
+  [2965] = true,
+  [2966] = true,
+  [2979] = true,
+  [3003] = true,
 }
 
 local TWW_DELVE_SPELL_ID = 1239535
@@ -176,25 +176,25 @@ local function InScenarioInstance()
   return instanceType == "scenario"
 end
 
-local function GetCurrentDelveInfo()
+local function GetCurrentDelveGroup()
   local _, instanceType, _, _, _, _, _, instanceID = GetInstanceInfo()
   if instanceType ~= "scenario" then
-    return nil, nil, nil
+    return nil
   end
 
   if TWW_DELVE_INSTANCE_IDS[instanceID] then
-    return "tww", instanceID, TWW_DELVE_INSTANCE_IDS[instanceID]
+    return "tww"
   end
 
   if MIDNIGHT_DELVE_INSTANCE_IDS[instanceID] then
-    return "midnight", instanceID, MIDNIGHT_DELVE_INSTANCE_IDS[instanceID]
+    return "midnight"
   end
 
-  return nil, instanceID, nil
+  return nil
 end
 
 local function GetActiveSpellID()
-  local delveGroup = GetCurrentDelveInfo()
+  local delveGroup = GetCurrentDelveGroup()
   if delveGroup == "tww" then
     return TWW_DELVE_SPELL_ID
   end
@@ -527,7 +527,7 @@ local tickTextures = { tickQ1, tickQ2, tickQ3 }
 local titleText
 
 local function SetTickAndBorderThemeForDelve()
-  local delveGroup = GetCurrentDelveInfo()
+  local delveGroup = GetCurrentDelveGroup()
   if delveGroup == "tww" then
     border:SetBackdropBorderColor(TWW_THEME_R, TWW_THEME_G, TWW_THEME_B, BORDER_A)
     for i = 1, #tickTextures do
@@ -722,7 +722,6 @@ end
 -- =========================
 local lastGoodFound = 0
 local lastGoodTotal = 0
-local lastGoodFrac  = 0
 
 local function ApplyVisualsFromFound(found, total, snapBarNow)
   found = tonumber(found) or 0
@@ -819,8 +818,6 @@ local function UpdateDisplay()
 
       lastGoodFound = found
       lastGoodTotal = total
-      lastGoodFrac  = Clamp(found / total, 0, 1)
-
       -- Normal updates while showing: animate bar smoothly
       ApplyVisualsFromFound(found, total, false)
     end
