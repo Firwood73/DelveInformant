@@ -99,8 +99,8 @@ local BAR_WIDTH, BAR_HEIGHT = 250, 25
 local BAR_POINT, BAR_X, BAR_Y = "CENTER", 0, 0
 local BAR_SCALE = 1
 
-local TICK_WIDTH = 12
-local TICK_HEIGHT_EXTRA = 6
+local TICK_WIDTH = 28
+local TICK_HEIGHT_EXTRA = 8
 
 local INSET_L, INSET_R, INSET_T, INSET_B = 4, 4, 4, 4
 
