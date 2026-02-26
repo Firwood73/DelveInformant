@@ -516,6 +516,7 @@ local tickQ1 = MakeTick()
 local tickQ2 = MakeTick()
 local tickQ3 = MakeTick()
 local tickTextures = { tickQ1, tickQ2, tickQ3 }
+local titleText
 
 local function SetTickAndBorderThemeForDelve()
   local delveGroup = GetCurrentDelveInfo()
@@ -569,7 +570,7 @@ PositionAllTicks(MAX_SUPPORTED_TOTAL)
 -- =========================
 -- Text
 -- =========================
-local titleText = f:CreateFontString(nil, "OVERLAY", "GameFontNormal")
+titleText = f:CreateFontString(nil, "OVERLAY", "GameFontNormal")
 do
   local x, y = SnapPoint(f, 0, 2)
   titleText:SetPoint("BOTTOM", f, "TOP", x, y)
