@@ -1,5 +1,5 @@
-## Interface: 120000, 120001
-## Title: Nemesis Strongbox by |cFF69CCF0Jeffrey|r
+## Interface: 120000
+## Title: NemesisStrongbox by |cFF69CCF0Jeffrey|r
 ## Notes: Standalone tracker for Nemesis Strongboxes
 ## Author: You
 ## Version: 1.0.0
