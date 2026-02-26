@@ -327,6 +327,7 @@ local fadeActive, fadeElapsed, fadeDuration = false, 0, 0
 local fadeFrom, fadeTo = 0, 0
 local fadeHideOnDone = false
 local lastShownState = false
+local ResetToHiddenEmptyState
 
 local function StartFadeTo(targetAlpha, duration, hideOnDone)
   targetAlpha = Clamp(targetAlpha or 0, 0, 1)
@@ -373,6 +374,10 @@ end
 
 local function HideFrameWithFade()
   lastShownState = false
+
+  if ResetToHiddenEmptyState then
+    ResetToHiddenEmptyState()
+  end
 
   if not f:IsShown() and (f:GetAlpha() or 0) <= 0 then
     f:SetAlpha(0)
@@ -525,9 +530,9 @@ local tickQ2 = MakeTick()
 local tickQ3 = MakeTick()
 local tickTextures = { tickQ1, tickQ2, tickQ3 }
 local titleText
+local activeThemeGroup = nil
 
-local function SetTickAndBorderThemeForDelve()
-  local delveGroup = GetCurrentDelveGroup()
+local function SetTickAndBorderTheme(delveGroup)
   if delveGroup == "tww" then
     border:SetBackdropBorderColor(TWW_THEME_R, TWW_THEME_G, TWW_THEME_B, BORDER_A)
     for i = 1, #tickTextures do
@@ -542,6 +547,20 @@ local function SetTickAndBorderThemeForDelve()
     tickTextures[i]:SetVertexColor(BORDER_R, BORDER_G, BORDER_B, BORDER_A)
   end
   titleText:SetTextColor(BORDER_R, BORDER_G, BORDER_B, 1)
+end
+
+local function SetTickAndBorderThemeForCurrentState()
+  local delveGroup = GetCurrentDelveGroup()
+
+  if delveGroup then
+    activeThemeGroup = delveGroup
+  elseif f:IsShown() or fadeActive then
+    delveGroup = activeThemeGroup
+  else
+    activeThemeGroup = nil
+  end
+
+  SetTickAndBorderTheme(delveGroup)
 end
 
 local function PositionTick(tick, frac)
@@ -747,6 +766,12 @@ local function ApplyVisualsFromFound(found, total, snapBarNow)
   SetFoundAllVisualState(total > 0 and found >= total)
 end
 
+ResetToHiddenEmptyState = function()
+  lastGoodFound = 0
+  lastGoodTotal = 0
+  ApplyVisualsFromFound(0, MAX_SUPPORTED_TOTAL, true)
+end
+
 -- =========================
 -- Show/hide rules
 -- =========================
@@ -799,7 +824,7 @@ end
 -- =========================
 local function UpdateDisplay()
   LogScenarioStepNameIfChanged(false)
-  SetTickAndBorderThemeForDelve()
+  SetTickAndBorderThemeForCurrentState()
 
   local dataFresh = false
   local remaining, total, rawWasZeroZero = ParseRemainingTotalFromSpellDesc()
