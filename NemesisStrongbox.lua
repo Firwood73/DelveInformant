@@ -389,6 +389,7 @@ end
 -- Statusbar
 -- =========================
 local bar = CreateFrame("StatusBar", nil, f)
+local BAR_EXPAND_PX = 1
 
 local function ApplyBarPoints()
   local l = Snap(f, INSET_L)
@@ -397,8 +398,8 @@ local function ApplyBarPoints()
   local b = Snap(f, INSET_B)
 
   bar:ClearAllPoints()
-  bar:SetPoint("TOPLEFT", f, "TOPLEFT", l, -t)
-  bar:SetPoint("BOTTOMRIGHT", f, "BOTTOMRIGHT", -r, b)
+  bar:SetPoint("TOPLEFT", f, "TOPLEFT", l - BAR_EXPAND_PX, -t + BAR_EXPAND_PX)
+  bar:SetPoint("BOTTOMRIGHT", f, "BOTTOMRIGHT", -r + BAR_EXPAND_PX, b - BAR_EXPAND_PX)
 end
 
 ApplyBarPoints()
