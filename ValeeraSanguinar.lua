@@ -19,6 +19,23 @@ local VALEERA_NAME = "Valeera Sanguinar"
 local VALEERA_NAME_KEYWORD = "valeera"
 local VALEERA_FRIENDSHIP_ID = 2744
 
+-- =========================
+-- LibSharedMedia (optional)
+-- =========================
+local LSM = LibStub and LibStub("LibSharedMedia-3.0", true)
+local LSM_STATUSBAR = (LSM and LSM.MediaType and LSM.MediaType.STATUSBAR) or "statusbar"
+local LSM_TEXTURE_NAME = "Flat"
+
+local function FetchStatusbarTexture()
+  if LSM and LSM.Fetch then
+    local tex = LSM:Fetch(LSM_STATUSBAR, LSM_TEXTURE_NAME, true)
+    if tex and tex ~= "" then
+      return tex
+    end
+  end
+  return "Interface\\TARGETINGFRAME\\UI-StatusBar"
+end
+
 local function GetCompanionFactionID()
   if C_Delves and C_Delves.GetCompanionFactionID then
     local factionID = tonumber(C_Delves.GetCompanionFactionID())
@@ -168,7 +185,7 @@ bar:SetPoint("TOPLEFT", 4, -20)
 bar:SetPoint("BOTTOMRIGHT", -4, 4)
 bar:SetMinMaxValues(0, 1)
 bar:SetValue(0)
-bar:SetStatusBarTexture("Interface\\TARGETINGFRAME\\UI-StatusBar")
+bar:SetStatusBarTexture(FetchStatusbarTexture())
 bar:SetStatusBarColor(BAR_R, BAR_G, BAR_B, BAR_A)
 
 local nameText = bar:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
