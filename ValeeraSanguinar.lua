@@ -1,5 +1,5 @@
 -- ValeeraSanguinar.lua
--- Companion progress bar for Valeera Sanguinar via C_Delves APIs.
+-- Companion progress bar for Valeera Sanguinar via friendship reputation APIs.
 
 DelveInformantDB = DelveInformantDB or {}
 DelveInformantDB.ValeeraSanguinar = DelveInformantDB.ValeeraSanguinar or {}
@@ -67,6 +67,40 @@ local function GetFactionCompanionInfo(targetFactionID)
   end
 
   return nil
+end
+
+local function GetFriendshipCompanionInfo(friendshipFactionID)
+  if not C_GossipInfo or not C_GossipInfo.GetFriendshipReputation then
+    return nil
+  end
+
+  local r = C_GossipInfo.GetFriendshipReputation(friendshipFactionID)
+  if not r then
+    return nil
+  end
+
+  local start = tonumber(r.reactionThreshold) or 0
+  local finish = tonumber(r.nextThreshold) or tonumber(r.maxRep) or start
+  local standing = tonumber(r.standing) or 0
+  local cur = standing - start
+  local max = finish - start
+
+  if max < 0 then max = 0 end
+  if cur < 0 then cur = 0 end
+  if max > 0 and cur > max then cur = max end
+
+  local level = tonumber(r.reaction)
+  if not level then
+    local reactionText = tostring(r.reaction or "")
+    level = tonumber(reactionText:match("(%d+)"))
+  end
+
+  return {
+    level = level or 0,
+    currentXP = cur,
+    totalXP = max,
+    factionID = friendshipFactionID,
+  }
 end
 
 local function Round(x)
@@ -187,26 +221,9 @@ end)
 local function GetCompanionInfo()
   local companionFactionID = GetCompanionFactionID()
 
-  if C_Delves and C_Delves.GetCompanionInfo then
-    local info = C_Delves.GetCompanionInfo(companionFactionID)
-    if not info then
-      info = C_Delves.GetCompanionInfo()
-    end
-
-    if type(info) == "table" then
-      local level = tonumber(info.level or info.companionLevel)
-      local currentXP = tonumber(info.currentXP or info.xp or info.earnedXP)
-      local totalXP = tonumber(info.totalXP or info.nextLevelXP or info.maxXP)
-
-      if level and currentXP and totalXP then
-        return {
-          level = level,
-          currentXP = currentXP,
-          totalXP = totalXP,
-          factionID = tonumber(info.factionID) or companionFactionID,
-        }
-      end
-    end
+  local friendshipInfo = GetFriendshipCompanionInfo(companionFactionID)
+  if friendshipInfo then
+    return friendshipInfo
   end
 
   if C_Delves and C_Delves.GetCompanionLevel and C_Delves.GetCompanionXP then
