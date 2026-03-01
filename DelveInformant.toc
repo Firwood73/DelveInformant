@@ -7,3 +7,4 @@
 ## OptionalDeps: LibSharedMedia-3.0
 
 NemesisStrongbox.lua
+ValeeraSanguinar.lua
