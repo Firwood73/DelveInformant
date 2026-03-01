@@ -192,71 +192,143 @@ local function CreateCustomTooltipBorder(parent)
   local texturePath = "Interface\\AddOns\\ChatChange\\Textures\\UI-Tooltip-Border"
 
   local sliceSize = 8
-  local atlasSize = 32
   local usedSize = 24
-  local u0, v0 = 0, 0
   local uvSlice = sliceSize / usedSize
 
-  local function SetSliceTexCoord(tex, left, right, top, bottom)
+  local function ApplySlice(tex, left, right, top, bottom)
+    tex:SetTexture(texturePath)
+    tex:SetVertexColor(BORDER_R, BORDER_G, BORDER_B, BORDER_A)
     tex:SetTexCoord(
-      u0 + (left * uvSlice),
-      u0 + (right * uvSlice),
-      v0 + (top * uvSlice),
-      v0 + (bottom * uvSlice)
+      left * uvSlice,
+      right * uvSlice,
+      top * uvSlice,
+      bottom * uvSlice
     )
   end
 
-  local pieces = {
+  local corners = {
     tl = border:CreateTexture(nil, "BORDER"),
-    t = border:CreateTexture(nil, "BORDER"),
     tr = border:CreateTexture(nil, "BORDER"),
-    l = border:CreateTexture(nil, "BORDER"),
-    r = border:CreateTexture(nil, "BORDER"),
     bl = border:CreateTexture(nil, "BORDER"),
-    b = border:CreateTexture(nil, "BORDER"),
     br = border:CreateTexture(nil, "BORDER"),
   }
 
-  for _, tex in pairs(pieces) do
-    tex:SetTexture(texturePath)
-    tex:SetVertexColor(BORDER_R, BORDER_G, BORDER_B, BORDER_A)
+  corners.tl:SetSize(sliceSize, sliceSize)
+  corners.tl:SetPoint("TOPLEFT", border, "TOPLEFT")
+  ApplySlice(corners.tl, 0, 1, 0, 1)
+
+  corners.tr:SetSize(sliceSize, sliceSize)
+  corners.tr:SetPoint("TOPRIGHT", border, "TOPRIGHT")
+  ApplySlice(corners.tr, 2, 3, 0, 1)
+
+  corners.bl:SetSize(sliceSize, sliceSize)
+  corners.bl:SetPoint("BOTTOMLEFT", border, "BOTTOMLEFT")
+  ApplySlice(corners.bl, 0, 1, 2, 3)
+
+  corners.br:SetSize(sliceSize, sliceSize)
+  corners.br:SetPoint("BOTTOMRIGHT", border, "BOTTOMRIGHT")
+  ApplySlice(corners.br, 2, 3, 2, 3)
+
+  local edgePools = {
+    t = {},
+    b = {},
+    l = {},
+    r = {},
+  }
+
+  local function AcquireEdge(which, index)
+    local pool = edgePools[which]
+    if not pool[index] then
+      pool[index] = border:CreateTexture(nil, "BORDER")
+      pool[index]:SetTexture(texturePath)
+      pool[index]:SetVertexColor(BORDER_R, BORDER_G, BORDER_B, BORDER_A)
+    end
+    pool[index]:Show()
+    return pool[index]
   end
 
-  pieces.tl:SetSize(sliceSize, sliceSize)
-  pieces.tl:SetPoint("TOPLEFT", border, "TOPLEFT")
-  SetSliceTexCoord(pieces.tl, 0, 1, 0, 1)
+  local function HideUnused(which, used)
+    local pool = edgePools[which]
+    for i = used + 1, #pool do
+      pool[i]:Hide()
+    end
+  end
 
-  pieces.t:SetPoint("TOPLEFT", pieces.tl, "TOPRIGHT")
-  pieces.t:SetPoint("TOPRIGHT", border, "TOPRIGHT", -sliceSize, 0)
-  pieces.t:SetHeight(sliceSize)
-  SetSliceTexCoord(pieces.t, 1, 2, 0, 1)
+  local function BuildHorizontal(which, yAnchor, texTop, texBottom, width)
+    local span = math.max(0, width - (sliceSize * 2))
+    local fullTiles = math.floor(span / sliceSize)
+    local remainder = span - (fullTiles * sliceSize)
+    local count = 0
 
-  pieces.tr:SetSize(sliceSize, sliceSize)
-  pieces.tr:SetPoint("TOPRIGHT", border, "TOPRIGHT")
-  SetSliceTexCoord(pieces.tr, 2, 3, 0, 1)
+    local x = sliceSize
+    for _ = 1, fullTiles do
+      count = count + 1
+      local tex = AcquireEdge(which, count)
+      tex:ClearAllPoints()
+      tex:SetPoint(yAnchor, border, yAnchor, x, 0)
+      tex:SetSize(sliceSize, sliceSize)
+      ApplySlice(tex, 1, 2, texTop, texBottom)
+      x = x + sliceSize
+    end
 
-  pieces.l:SetPoint("TOPLEFT", pieces.tl, "BOTTOMLEFT")
-  pieces.l:SetPoint("BOTTOMLEFT", border, "BOTTOMLEFT", 0, sliceSize)
-  pieces.l:SetWidth(sliceSize)
-  SetSliceTexCoord(pieces.l, 0, 1, 1, 2)
+    if remainder > 0 then
+      count = count + 1
+      local tex = AcquireEdge(which, count)
+      tex:ClearAllPoints()
+      tex:SetPoint(yAnchor, border, yAnchor, x, 0)
+      tex:SetSize(remainder, sliceSize)
+      ApplySlice(tex, 1, 1 + (remainder / sliceSize), texTop, texBottom)
+    end
 
-  pieces.r:SetPoint("TOPRIGHT", pieces.tr, "BOTTOMRIGHT")
-  pieces.r:SetPoint("BOTTOMRIGHT", border, "BOTTOMRIGHT", 0, sliceSize)
-  pieces.r:SetWidth(sliceSize)
-  SetSliceTexCoord(pieces.r, 2, 3, 1, 2)
+    HideUnused(which, count)
+  end
 
-  pieces.bl:SetSize(sliceSize, sliceSize)
-  pieces.bl:SetPoint("BOTTOMLEFT", border, "BOTTOMLEFT")
-  SetSliceTexCoord(pieces.bl, 0, 1, 2, 3)
+  local function Rebuild()
+    local width = math.max(sliceSize * 2, border:GetWidth() or 0)
+    local height = math.max(sliceSize * 2, border:GetHeight() or 0)
 
-  pieces.b:SetPoint("BOTTOMLEFT", pieces.bl, "BOTTOMRIGHT")
-  pieces.b:SetPoint("BOTTOMRIGHT", border, "BOTTOMRIGHT", -sliceSize, 0)
-  pieces.b:SetHeight(sliceSize)
-  SetSliceTexCoord(pieces.b, 1, 2, 2, 3)
+    for _, corner in pairs(corners) do
+      corner:SetVertexColor(BORDER_R, BORDER_G, BORDER_B, BORDER_A)
+    end
 
-  pieces.br:SetSize(sliceSize, sliceSize)
-  pieces.br:SetPoint("BOTTOMRIGHT", border, "BOTTOMRIGHT")
-  SetSliceTexCoord(pieces.br, 2, 3, 2, 3)
+    BuildHorizontal("t", "TOPLEFT", 0, 1, width)
+    BuildHorizontal("b", "BOTTOMLEFT", 2, 3, width)
+
+    local sideSpan = math.max(0, height - (sliceSize * 2))
+    local fullTiles = math.floor(sideSpan / sliceSize)
+    local remainder = sideSpan - (fullTiles * sliceSize)
+
+    local function BuildSide(which, point, texLeft, texRight)
+      local count = 0
+      local y = -sliceSize
+      for _ = 1, fullTiles do
+        count = count + 1
+        local tex = AcquireEdge(which, count)
+        tex:ClearAllPoints()
+        tex:SetPoint(point, border, point, 0, y)
+        tex:SetSize(sliceSize, sliceSize)
+        ApplySlice(tex, texLeft, texRight, 1, 2)
+        y = y - sliceSize
+      end
+
+      if remainder > 0 then
+        count = count + 1
+        local tex = AcquireEdge(which, count)
+        tex:ClearAllPoints()
+        tex:SetPoint(point, border, point, 0, y)
+        tex:SetSize(sliceSize, remainder)
+        ApplySlice(tex, texLeft, texRight, 1, 1 + (remainder / sliceSize))
+      end
+
+      HideUnused(which, count)
+    end
+
+    BuildSide("l", "TOPLEFT", 0, 1)
+    BuildSide("r", "TOPRIGHT", 2, 3)
+  end
+
+  border:SetScript("OnSizeChanged", Rebuild)
+  Rebuild()
 
   return border
 end
