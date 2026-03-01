@@ -17,12 +17,16 @@ local BORDER_R, BORDER_G, BORDER_B, BORDER_A = 0.5921568627, 0.5254901961, 0.968
 
 local VALEERA_NAME = "Valeera Sanguinar"
 local VALEERA_NAME_KEYWORD = "valeera"
+local VALEERA_FRIENDSHIP_ID = 2744
 
 local function GetCompanionFactionID()
   if C_Delves and C_Delves.GetCompanionFactionID then
-    return tonumber(C_Delves.GetCompanionFactionID())
+    local factionID = tonumber(C_Delves.GetCompanionFactionID())
+    if factionID and factionID > 0 then
+      return factionID
+    end
   end
-  return nil
+  return VALEERA_FRIENDSHIP_ID
 end
 
 local function IsValeeraFaction(factionName, factionID, targetFactionID)
@@ -222,6 +226,7 @@ local function GetCompanionInfo()
   local companionFactionID = GetCompanionFactionID()
 
   local friendshipInfo = GetFriendshipCompanionInfo(companionFactionID)
+    or GetFriendshipCompanionInfo(VALEERA_FRIENDSHIP_ID)
   if friendshipInfo then
     return friendshipInfo
   end
@@ -248,6 +253,7 @@ local function GetCompanionInfo()
   end
 
   return GetFactionCompanionInfo(companionFactionID)
+    or GetFactionCompanionInfo(VALEERA_FRIENDSHIP_ID)
 end
 
 local function UpdateDisplay()
