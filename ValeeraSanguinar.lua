@@ -184,16 +184,84 @@ f:RegisterForDrag("LeftButton")
 f:SetAlpha(0)
 f:Hide()
 
-local borderFrame = CreateFrame("Frame", nil, f, "BackdropTemplate")
-borderFrame:SetAllPoints(f)
-borderFrame:SetFrameLevel(f:GetFrameLevel() + 3)
-borderFrame:SetBackdrop({
-  edgeFile = "Interface\\Tooltips\\UI-Tooltip-Border",
-  tile = true,
-  edgeSize = 16,
-  insets = { left = 4, right = 4, top = 4, bottom = 4 },
-})
-borderFrame:SetBackdropBorderColor(BORDER_R, BORDER_G, BORDER_B, BORDER_A)
+local function CreateCustomTooltipBorder(parent)
+  local border = CreateFrame("Frame", nil, parent)
+  border:SetAllPoints(parent)
+  border:SetFrameLevel(parent:GetFrameLevel() + 3)
+
+  local texturePath = "Interface\\AddOns\\ChatChange\\Textures\\UI-Tooltip-Border"
+
+  local sliceSize = 8
+  local atlasSize = 32
+  local usedSize = 24
+  local u0, v0 = 0, 0
+  local uvSlice = sliceSize / usedSize
+
+  local function SetSliceTexCoord(tex, left, right, top, bottom)
+    tex:SetTexCoord(
+      u0 + (left * uvSlice),
+      u0 + (right * uvSlice),
+      v0 + (top * uvSlice),
+      v0 + (bottom * uvSlice)
+    )
+  end
+
+  local pieces = {
+    tl = border:CreateTexture(nil, "BORDER"),
+    t = border:CreateTexture(nil, "BORDER"),
+    tr = border:CreateTexture(nil, "BORDER"),
+    l = border:CreateTexture(nil, "BORDER"),
+    r = border:CreateTexture(nil, "BORDER"),
+    bl = border:CreateTexture(nil, "BORDER"),
+    b = border:CreateTexture(nil, "BORDER"),
+    br = border:CreateTexture(nil, "BORDER"),
+  }
+
+  for _, tex in pairs(pieces) do
+    tex:SetTexture(texturePath)
+    tex:SetVertexColor(BORDER_R, BORDER_G, BORDER_B, BORDER_A)
+  end
+
+  pieces.tl:SetSize(sliceSize, sliceSize)
+  pieces.tl:SetPoint("TOPLEFT", border, "TOPLEFT")
+  SetSliceTexCoord(pieces.tl, 0, 1, 0, 1)
+
+  pieces.t:SetPoint("TOPLEFT", pieces.tl, "TOPRIGHT")
+  pieces.t:SetPoint("TOPRIGHT", border, "TOPRIGHT", -sliceSize, 0)
+  pieces.t:SetHeight(sliceSize)
+  SetSliceTexCoord(pieces.t, 1, 2, 0, 1)
+
+  pieces.tr:SetSize(sliceSize, sliceSize)
+  pieces.tr:SetPoint("TOPRIGHT", border, "TOPRIGHT")
+  SetSliceTexCoord(pieces.tr, 2, 3, 0, 1)
+
+  pieces.l:SetPoint("TOPLEFT", pieces.tl, "BOTTOMLEFT")
+  pieces.l:SetPoint("BOTTOMLEFT", border, "BOTTOMLEFT", 0, sliceSize)
+  pieces.l:SetWidth(sliceSize)
+  SetSliceTexCoord(pieces.l, 0, 1, 1, 2)
+
+  pieces.r:SetPoint("TOPRIGHT", pieces.tr, "BOTTOMRIGHT")
+  pieces.r:SetPoint("BOTTOMRIGHT", border, "BOTTOMRIGHT", 0, sliceSize)
+  pieces.r:SetWidth(sliceSize)
+  SetSliceTexCoord(pieces.r, 2, 3, 1, 2)
+
+  pieces.bl:SetSize(sliceSize, sliceSize)
+  pieces.bl:SetPoint("BOTTOMLEFT", border, "BOTTOMLEFT")
+  SetSliceTexCoord(pieces.bl, 0, 1, 2, 3)
+
+  pieces.b:SetPoint("BOTTOMLEFT", pieces.bl, "BOTTOMRIGHT")
+  pieces.b:SetPoint("BOTTOMRIGHT", border, "BOTTOMRIGHT", -sliceSize, 0)
+  pieces.b:SetHeight(sliceSize)
+  SetSliceTexCoord(pieces.b, 1, 2, 2, 3)
+
+  pieces.br:SetSize(sliceSize, sliceSize)
+  pieces.br:SetPoint("BOTTOMRIGHT", border, "BOTTOMRIGHT")
+  SetSliceTexCoord(pieces.br, 2, 3, 2, 3)
+
+  return border
+end
+
+local borderFrame = CreateCustomTooltipBorder(f)
 
 local bg = f:CreateTexture(nil, "BACKGROUND")
 bg:SetPoint("TOPLEFT", f, "TOPLEFT", 4, -4)
