@@ -1,4 +1,4 @@
--- DelveInformant.lua
+-- NemesisStrongbox.lua
 -- Reads C_Spell.GetSpellDescription(activeDelveSpellID) and parses "x / y".
 -- Spell reports REMAINING / TOTAL (starts 4/4 then 3/4...).
 -- Spell can sometimes report "0 / 0" on completion/reload; we coerce that to 0 / MAX_SUPPORTED_TOTAL.
@@ -14,6 +14,9 @@
 --   - Supports dynamic layouts for totals 1..4 (0..3 inner dividers)
 
 DelveInformantDB = DelveInformantDB or {}
+DelveInformantDB.NemesisStrongbox = DelveInformantDB.NemesisStrongbox or {}
+
+local db = DelveInformantDB.NemesisStrongbox
 
 -- =========================
 -- LibSharedMedia (optional)
@@ -620,8 +623,15 @@ local function EnsureDBDefaults()
   if type(DelveInformantDB) ~= "table" then
     DelveInformantDB = {}
   end
-  if DelveInformantDB.locked == nil then
-    DelveInformantDB.locked = true
+
+  if type(DelveInformantDB.NemesisStrongbox) ~= "table" then
+    DelveInformantDB.NemesisStrongbox = {}
+  end
+
+  db = DelveInformantDB.NemesisStrongbox
+
+  if db.locked == nil then
+    db.locked = true
   end
 end
 
@@ -632,15 +642,15 @@ local function SavePosition()
   xOfs = Snap(f, xOfs or 0)
   yOfs = Snap(f, yOfs or 0)
 
-  DelveInformantDB.pos = DelveInformantDB.pos or {}
-  DelveInformantDB.pos.point = point
-  DelveInformantDB.pos.relativePoint = relativePoint
-  DelveInformantDB.pos.x = xOfs
-  DelveInformantDB.pos.y = yOfs
+  db.pos = db.pos or {}
+  db.pos.point = point
+  db.pos.relativePoint = relativePoint
+  db.pos.x = xOfs
+  db.pos.y = yOfs
 end
 
 local function RestorePosition()
-  local pos = DelveInformantDB.pos
+  local pos = db.pos
   f:ClearAllPoints()
 
   if pos and pos.point and pos.relativePoint and pos.x and pos.y then
@@ -651,7 +661,7 @@ local function RestorePosition()
 end
 
 local function ApplyLockState()
-  if DelveInformantDB.locked then
+  if db.locked then
     f:EnableMouse(false)
     f:RegisterForDrag()
     f:SetScript("OnDragStart", nil)
@@ -670,9 +680,9 @@ local function ApplyLockState()
 end
 
 local function SetLocked(isLocked)
-  DelveInformantDB.locked = not not isLocked
+  db.locked = not not isLocked
   ApplyLockState()
-  NS_Print(DelveInformantDB.locked and "Locked." or "Unlocked. Drag to move.")
+  NS_Print(db.locked and "Locked." or "Unlocked. Drag to move.")
 end
 
 -- =========================
@@ -996,7 +1006,7 @@ SLASH_DELVEINFORMANTUNLOCK1 = "/nsunlock"
 SlashCmdList["DELVEINFORMANTUNLOCK"] = function() SetLocked(false) end
 
 SLASH_DELVEINFORMANTMOVE1 = "/nsmove"
-SlashCmdList["DELVEINFORMANTMOVE"] = function() SetLocked(not DelveInformantDB.locked) end
+SlashCmdList["DELVEINFORMANTMOVE"] = function() SetLocked(not db.locked) end
 
 -- =========================
 -- Init

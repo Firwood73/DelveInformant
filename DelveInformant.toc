@@ -6,4 +6,4 @@
 ## SavedVariables: DelveInformantDB
 ## OptionalDeps: LibSharedMedia-3.0
 
-DelveInformant.lua
+NemesisStrongbox.lua
