@@ -98,71 +98,6 @@ local MSG_FADE_SECONDS   = 0.5
 local BAR_WIDTH, BAR_HEIGHT = 250, 25
 local BAR_POINT, BAR_X, BAR_Y = "CENTER", 0, 0
 local BAR_SCALE = 1
-local REP_BAR_GAP = 8
-
-local VALEERA_FACTION_ID = 2744
-local VALEERA_LEVELS = {
-  { level = 1, startXP = 0, neededXP = 2500 },
-  { level = 2, startXP = 2500, neededXP = 3000 },
-  { level = 3, startXP = 5500, neededXP = 3600 },
-  { level = 4, startXP = 9100, neededXP = 4320 },
-  { level = 5, startXP = 13420, neededXP = 5184 },
-  { level = 6, startXP = 18604, neededXP = 6221 },
-  { level = 7, startXP = 24825, neededXP = 7465 },
-  { level = 8, startXP = 32290, neededXP = 8958 },
-  { level = 9, startXP = 41248, neededXP = 10749 },
-  { level = 10, startXP = 51997, neededXP = 12500 },
-  { level = 11, startXP = 64497, neededXP = 12500 },
-  { level = 12, startXP = 76997, neededXP = 12500 },
-  { level = 13, startXP = 89497, neededXP = 12500 },
-  { level = 14, startXP = 101997, neededXP = 12500 },
-  { level = 15, startXP = 114497, neededXP = 37688 },
-  { level = 16, startXP = 152185, neededXP = 37875 },
-  { level = 17, startXP = 190060, neededXP = 38062 },
-  { level = 18, startXP = 228122, neededXP = 38250 },
-  { level = 19, startXP = 266372, neededXP = 38438 },
-  { level = 20, startXP = 304810, neededXP = 38625 },
-  { level = 21, startXP = 343435, neededXP = 38812 },
-  { level = 22, startXP = 382247, neededXP = 39000 },
-  { level = 23, startXP = 421247, neededXP = 39188 },
-  { level = 24, startXP = 460435, neededXP = 39375 },
-  { level = 25, startXP = 499810, neededXP = 62500 },
-  { level = 26, startXP = 562310, neededXP = 62687 },
-  { level = 27, startXP = 624997, neededXP = 62875 },
-  { level = 28, startXP = 687872, neededXP = 63063 },
-  { level = 29, startXP = 750935, neededXP = 63250 },
-  { level = 30, startXP = 814185, neededXP = 63437 },
-  { level = 31, startXP = 877622, neededXP = 63625 },
-  { level = 32, startXP = 941247, neededXP = 63813 },
-  { level = 33, startXP = 1005060, neededXP = 64000 },
-  { level = 34, startXP = 1069060, neededXP = 64187 },
-  { level = 35, startXP = 1133247, neededXP = 87500 },
-  { level = 36, startXP = 1220747, neededXP = 87688 },
-  { level = 37, startXP = 1308435, neededXP = 87875 },
-  { level = 38, startXP = 1396310, neededXP = 88062 },
-  { level = 39, startXP = 1484372, neededXP = 88250 },
-  { level = 40, startXP = 1572622, neededXP = 88438 },
-  { level = 41, startXP = 1661060, neededXP = 88625 },
-  { level = 42, startXP = 1749685, neededXP = 88812 },
-  { level = 43, startXP = 1838497, neededXP = 89000 },
-  { level = 44, startXP = 1927497, neededXP = 89188 },
-  { level = 45, startXP = 2016685, neededXP = 250000 },
-  { level = 46, startXP = 2266685, neededXP = 256250 },
-  { level = 47, startXP = 2522935, neededXP = 262500 },
-  { level = 48, startXP = 2785435, neededXP = 268750 },
-  { level = 49, startXP = 3054185, neededXP = 275000 },
-  { level = 50, startXP = 3329185, neededXP = 281250 },
-  { level = 51, startXP = 3610435, neededXP = 287500 },
-  { level = 52, startXP = 3897935, neededXP = 293750 },
-  { level = 53, startXP = 4191685, neededXP = 300000 },
-  { level = 54, startXP = 4491685, neededXP = 306250 },
-  { level = 55, startXP = 4797935, neededXP = 437500 },
-  { level = 56, startXP = 5235435, neededXP = 562500 },
-  { level = 57, startXP = 5797935, neededXP = 687500 },
-  { level = 58, startXP = 6485435, neededXP = 812500 },
-  { level = 59, startXP = 7297935, neededXP = 875000 },
-  { level = 60, startXP = 8172935, neededXP = 0 },
-}
 
 local TICK_WIDTH = 28
 local TICK_HEIGHT_EXTRA = 8
@@ -301,73 +236,6 @@ local function ComputeFound(remaining, total)
   local found = total - remaining
   found = Clamp(found, 0, total)
   return found
-end
-
-local function GetFactionBarInfoByID(factionID)
-  if type(GetFactionInfoByID) == "function" then
-    local name, _, _, barMin, barMax, barValue = GetFactionInfoByID(factionID)
-    return name, barMin, barMax, barValue
-  end
-
-  if C_Reputation and C_Reputation.GetFactionDataByID then
-    local data = C_Reputation.GetFactionDataByID(factionID)
-    if data then
-      return data.name, data.barMin, data.barMax, data.barValue
-    end
-  end
-
-  return nil, nil, nil, nil
-end
-
-local function GetValeeraFactionProgress()
-  local name, barMin, barMax, barValue = GetFactionBarInfoByID(VALEERA_FACTION_ID)
-  if not name or barValue == nil then
-    return nil
-  end
-
-  local totalXP = SafeToNumber(barValue)
-  if barMin and barMax and barMax > barMin then
-    totalXP = SafeToNumber(barMin) + Clamp(SafeToNumber(barValue) - SafeToNumber(barMin), 0, SafeToNumber(barMax) - SafeToNumber(barMin))
-  end
-
-  local current = VALEERA_LEVELS[1]
-  for i = 1, #VALEERA_LEVELS do
-    local row = VALEERA_LEVELS[i]
-    if totalXP >= row.startXP then
-      current = row
-    else
-      break
-    end
-  end
-
-  local progressInLevel = math.max(0, totalXP - current.startXP)
-  local neededXP = math.max(0, current.neededXP)
-  local isCapped = (current.level >= #VALEERA_LEVELS)
-  local progressPercent = (neededXP > 0) and Clamp(progressInLevel / neededXP, 0, 1) or 1
-
-  return {
-    name = name,
-    totalXP = totalXP,
-    level = current.level,
-    progressInLevel = progressInLevel,
-    neededXP = neededXP,
-    progressPercent = progressPercent,
-    remainingXP = math.max(0, neededXP - progressInLevel),
-    isCapped = isCapped,
-  }
-end
-
-local function ShouldShowValeeraBar()
-  if ONLY_IN_SCENARIO_INSTANCES and not InScenarioInstance() then
-    return false
-  end
-
-  if not GetCurrentDelveGroup() then
-    return false
-  end
-
-  local hideNow = ShouldHideForScenarioStep()
-  return not hideNow
 end
 
 local function ShouldHideForScenarioStep()
@@ -746,82 +614,6 @@ msg:SetText("")
 msg:SetAlpha(0)
 
 -- =========================
--- Valeera reputation bar
--- =========================
-local repFrame = CreateFrame("Frame", "NemesisStrongboxValeeraFrame", UIParent, "BackdropTemplate")
-repFrame:SetScale(BAR_SCALE)
-repFrame:SetSize(Snap(repFrame, BAR_WIDTH), Snap(repFrame, BAR_HEIGHT))
-repFrame:SetPoint("TOP", f, "BOTTOM", 0, -REP_BAR_GAP)
-repFrame:SetBackdrop({
-  edgeFile = "Interface/Tooltips/UI-Tooltip-Border",
-  tile = true,
-  edgeSize = 16,
-  insets = { left = 4, right = 4, top = 4, bottom = 4 },
-})
-repFrame:SetBackdropBorderColor(BORDER_R, BORDER_G, BORDER_B, BORDER_A)
-repFrame:Hide()
-
-local repBar = CreateFrame("StatusBar", nil, repFrame)
-repBar:SetPoint("TOPLEFT", repFrame, "TOPLEFT", Snap(repFrame, INSET_L), Snap(repFrame, -INSET_T))
-repBar:SetPoint("BOTTOMRIGHT", repFrame, "BOTTOMRIGHT", Snap(repFrame, -INSET_R), Snap(repFrame, INSET_B))
-repBar:SetMinMaxValues(0, 1)
-repBar:SetValue(0)
-repBar:SetStatusBarColor(0.0, 0.75, 0.0, 1)
-repBar:SetStatusBarTexture(FetchStatusbarTexture())
-
-local repBarBG = repBar:CreateTexture(nil, "BACKGROUND")
-repBarBG:SetAllPoints(true)
-repBarBG:SetColorTexture(BG_R, BG_G, BG_B, BG_A)
-
-local repTitle = repFrame:CreateFontString(nil, "OVERLAY", "GameFontNormal")
-repTitle:SetPoint("BOTTOM", repFrame, "TOP", 0, 2)
-repTitle:SetText("Valeera Sanguinar")
-repTitle:SetTextColor(BORDER_R, BORDER_G, BORDER_B, 1)
-
-local repLeftText = repFrame:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
-repLeftText:SetPoint("LEFT", repBar, "LEFT", 6, 0)
-repLeftText:SetJustifyH("LEFT")
-
-local repRightText = repFrame:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
-repRightText:SetPoint("RIGHT", repBar, "RIGHT", -6, 0)
-repRightText:SetJustifyH("RIGHT")
-
-local function FormatNumber(n)
-  local sign = ""
-  if n < 0 then
-    sign = "-"
-    n = math.abs(n)
-  end
-  local s = tostring(math.floor(n + 0.5))
-  return sign .. s:reverse():gsub("(%d%d%d)", "%1,"):reverse():gsub("^,", "")
-end
-
-local function UpdateValeeraBar()
-  if not ShouldShowValeeraBar() then
-    repFrame:Hide()
-    return
-  end
-
-  local progress = GetValeeraFactionProgress()
-  if not progress then
-    repFrame:Hide()
-    return
-  end
-
-  repFrame:Show()
-  repTitle:SetText(progress.name)
-  repBar:SetValue(progress.progressPercent)
-
-  if progress.isCapped then
-    repLeftText:SetText("Level " .. progress.level .. " (Max)")
-    repRightText:SetText(FormatNumber(progress.totalXP) .. " XP")
-  else
-    repLeftText:SetText("Level " .. progress.level .. "  " .. FormatNumber(progress.progressInLevel) .. " / " .. FormatNumber(progress.neededXP))
-    repRightText:SetText(FormatNumber(progress.remainingXP) .. " to Lvl " .. (progress.level + 1))
-  end
-end
-
--- =========================
 -- DB: position + lock state
 -- =========================
 local function EnsureDBDefaults()
@@ -1182,8 +974,6 @@ evt:RegisterEvent("ZONE_CHANGED_NEW_AREA")
 evt:RegisterEvent("SCENARIO_UPDATE")
 evt:RegisterEvent("SPELL_TEXT_UPDATE")
 evt:RegisterEvent("PLAYER_REGEN_ENABLED")
-evt:RegisterEvent("UPDATE_FACTION")
-evt:RegisterEvent("CHAT_MSG_COMBAT_FACTION_CHANGE")
 evt:SetScript("OnEvent", function(_, event)
   if event == "PLAYER_ENTERING_WORLD" or event == "ZONE_CHANGED_NEW_AREA" then
     StartGraceWindow()
@@ -1194,7 +984,6 @@ evt:SetScript("OnEvent", function(_, event)
     end)
   end
   UpdateDisplay()
-  UpdateValeeraBar()
 end)
 
 -- =========================
@@ -1218,4 +1007,3 @@ ApplyLockState()
 
 StartGraceWindow()
 UpdateDisplay()
-UpdateValeeraBar()
