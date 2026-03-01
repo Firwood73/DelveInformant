@@ -16,8 +16,29 @@ local BAR_R, BAR_G, BAR_B, BAR_A = 0.72, 0.18, 0.62, 1
 local BORDER_R, BORDER_G, BORDER_B, BORDER_A = 0.5921568627, 0.5254901961, 0.968627451, 0.76
 
 local VALEERA_NAME = "Valeera Sanguinar"
+local VALEERA_NAME_KEYWORD = "valeera"
 
-local function GetFactionCompanionInfo()
+local function GetCompanionFactionID()
+  if C_Delves and C_Delves.GetCompanionFactionID then
+    return tonumber(C_Delves.GetCompanionFactionID())
+  end
+  return nil
+end
+
+local function IsValeeraFaction(factionName, factionID, targetFactionID)
+  if targetFactionID and factionID and tonumber(factionID) == targetFactionID then
+    return true
+  end
+
+  if type(factionName) ~= "string" then
+    return false
+  end
+
+  local lowered = string.lower(factionName)
+  return string.find(lowered, VALEERA_NAME_KEYWORD, 1, true) ~= nil
+end
+
+local function GetFactionCompanionInfo(targetFactionID)
   if not GetNumFactions or not GetFactionInfo then
     return nil
   end
@@ -25,7 +46,7 @@ local function GetFactionCompanionInfo()
   local numFactions = GetNumFactions()
   for i = 1, numFactions do
     local name, _, standingID, barMin, barMax, barValue, _, _, _, _, _, _, _, _, _, _, _, factionID = GetFactionInfo(i)
-    if type(name) == "string" and string.find(string.lower(name), string.lower(VALEERA_NAME), 1, true) then
+    if IsValeeraFaction(name, factionID, targetFactionID) then
       local minValue = tonumber(barMin) or 0
       local maxValue = tonumber(barMax) or 0
       local value = tonumber(barValue) or 0
@@ -164,9 +185,37 @@ f:SetScript("OnDragStop", function(self)
 end)
 
 local function GetCompanionInfo()
+  local companionFactionID = GetCompanionFactionID()
+
+  if C_Delves and C_Delves.GetCompanionInfo then
+    local info = C_Delves.GetCompanionInfo(companionFactionID)
+    if not info then
+      info = C_Delves.GetCompanionInfo()
+    end
+
+    if type(info) == "table" then
+      local level = tonumber(info.level or info.companionLevel)
+      local currentXP = tonumber(info.currentXP or info.xp or info.earnedXP)
+      local totalXP = tonumber(info.totalXP or info.nextLevelXP or info.maxXP)
+
+      if level and currentXP and totalXP then
+        return {
+          level = level,
+          currentXP = currentXP,
+          totalXP = totalXP,
+          factionID = tonumber(info.factionID) or companionFactionID,
+        }
+      end
+    end
+  end
+
   if C_Delves and C_Delves.GetCompanionLevel and C_Delves.GetCompanionXP then
-    local level = tonumber(C_Delves.GetCompanionLevel())
-    local currentXP, totalXP = C_Delves.GetCompanionXP()
+    local level = tonumber(C_Delves.GetCompanionLevel(companionFactionID))
+      or tonumber(C_Delves.GetCompanionLevel())
+    local currentXP, totalXP = C_Delves.GetCompanionXP(companionFactionID)
+    if currentXP == nil or totalXP == nil then
+      currentXP, totalXP = C_Delves.GetCompanionXP()
+    end
 
     currentXP = tonumber(currentXP)
     totalXP = tonumber(totalXP)
@@ -176,11 +225,12 @@ local function GetCompanionInfo()
         level = level,
         currentXP = currentXP,
         totalXP = totalXP,
+        factionID = companionFactionID,
       }
     end
   end
 
-  return GetFactionCompanionInfo()
+  return GetFactionCompanionInfo(companionFactionID)
 end
 
 local function UpdateDisplay()
