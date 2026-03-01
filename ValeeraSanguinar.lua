@@ -181,7 +181,7 @@ f:SetBackdropColor(BG_R, BG_G, BG_B, BG_A)
 f:SetBackdropBorderColor(BORDER_R, BORDER_G, BORDER_B, BORDER_A)
 
 local bar = CreateFrame("StatusBar", nil, f)
-bar:SetPoint("TOPLEFT", 4, -20)
+bar:SetPoint("TOPLEFT", 4, -4)
 bar:SetPoint("BOTTOMRIGHT", -4, 4)
 bar:SetMinMaxValues(0, 1)
 bar:SetValue(0)
