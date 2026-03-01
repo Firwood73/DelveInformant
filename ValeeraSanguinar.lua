@@ -16,6 +16,8 @@ local BG_R, BG_G, BG_B, BG_A = 0, 0, 0, 0.35
 local BAR_R, BAR_G, BAR_B, BAR_A = 0.72, 0.18, 0.62, 1
 local BORDER_R, BORDER_G, BORDER_B, BORDER_A = 0.5921568627, 0.5254901961, 0.968627451, 0.76
 
+local MAX_RENOWN_LEVEL = 60
+
 local function Round(x)
   if x >= 0 then
     return math.floor(x + 0.5)
@@ -32,6 +34,18 @@ end
 
 local function SnapPoint(frame, x, y)
   return Snap(frame, x or 0), Snap(frame, y or 0)
+end
+
+local function FormatNumber(n)
+  local s = tostring(math.floor(tonumber(n) or 0))
+  while true do
+    local nextS, count = s:gsub("^(%-?%d+)(%d%d%d)", "%1,%2")
+    s = nextS
+    if count == 0 then
+      break
+    end
+  end
+  return s
 end
 
 local function EnsureDBDefaults()
@@ -126,21 +140,54 @@ local function GetFactionData()
   return C_Reputation.GetFactionDataByID(FACTION_ID)
 end
 
+local function GetFactionInfoLegacy()
+  if not GetFactionInfoByID then
+    return nil
+  end
+
+  local name, _, standingID, barMin, barMax, barValue, _, _, _, _, _, _, factionID = GetFactionInfoByID(FACTION_ID)
+  if factionID ~= FACTION_ID then
+    return nil
+  end
+
+  return {
+    name = name,
+    standingID = standingID,
+    barMin = barMin,
+    barMax = barMax,
+    barValue = barValue,
+  }
+end
+
 local function UpdateDisplay()
   local data = GetFactionData()
-  if not data then
+  local legacy = GetFactionInfoLegacy()
+
+  if not data and not legacy then
     f:Hide()
     return
   end
 
-  local current = data.currentStanding or 0
-  local min = data.currentReactionThreshold or 0
-  local max = data.nextReactionThreshold or 0
+  local name = (data and data.name) or (legacy and legacy.name) or "Valeera Sanguinar"
+  local level = 0
+  local current, min, max = 0, 0, 0
+
+  if legacy and legacy.barMax and legacy.barMax > 0 then
+    level = legacy.standingID or 0
+    current = legacy.barValue or 0
+    min = legacy.barMin or 0
+    max = legacy.barMax or 0
+  else
+    level = (data and (data.renownLevel or data.currentStanding)) or 0
+    current = (data and data.currentStanding) or 0
+    min = (data and data.currentReactionThreshold) or 0
+    max = (data and data.nextReactionThreshold) or 0
+  end
 
   local earned = current - min
   local needed = max - min
 
-  local isCapped = (needed <= 0) or data.isCapped
+  local isCapped = (needed <= 0) or (data and data.isCapped)
   local percent = 100
   if isCapped then
     bar:SetValue(1)
@@ -152,13 +199,14 @@ local function UpdateDisplay()
     bar:SetValue(pct)
   end
 
-  valueText:SetText(string.format("%.0f%%", percent))
-
-  local name = data.name or "Valeera Sanguinar"
   nameText:SetText(name)
+  levelText:SetText(string.format("%d/%d", level, MAX_RENOWN_LEVEL))
 
-  local level = data.renownLevel or data.currentStanding or 0
-  levelText:SetText(string.format("%d/60", level))
+  if isCapped then
+    valueText:SetText("Max")
+  else
+    valueText:SetText(string.format("%s/%s (%.0f%%)", FormatNumber(earned), FormatNumber(needed), percent))
+  end
 
   f:Show()
 end
