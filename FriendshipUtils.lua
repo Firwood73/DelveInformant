@@ -35,4 +35,53 @@ local function PrintFriendshipBar(friendshipFactionID)
   end
 end
 
+-- Membership sets used only for fast instance lookups.
+local TWW_DELVE_INSTANCE_IDS = {
+  [2664] = true,
+  [2679] = true,
+  [2680] = true,
+  [2681] = true,
+  [2682] = true,
+  [2683] = true,
+  [2684] = true,
+  [2685] = true,
+  [2686] = true,
+  [2687] = true,
+  [2688] = true,
+  [2689] = true,
+  [2690] = true,
+}
+
+local MIDNIGHT_DELVE_INSTANCE_IDS = {
+  [2933] = true,
+  [2952] = true,
+  [2953] = true,
+  [2961] = true,
+  [2962] = true,
+  [2963] = true,
+  [2964] = true,
+  [2965] = true,
+  [2966] = true,
+  [2979] = true,
+  [3003] = true,
+}
+
+local function GetCurrentDelveGroup()
+  local _, instanceType, _, _, _, _, _, instanceID = GetInstanceInfo()
+  if instanceType ~= "scenario" then
+    return nil
+  end
+
+  if TWW_DELVE_INSTANCE_IDS[instanceID] then
+    return "tww"
+  end
+
+  if MIDNIGHT_DELVE_INSTANCE_IDS[instanceID] then
+    return "midnight"
+  end
+
+  return nil
+end
+
 _G.PrintFriendshipBar = PrintFriendshipBar
+_G.GetCurrentDelveGroup = GetCurrentDelveGroup

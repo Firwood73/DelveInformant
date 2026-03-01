@@ -40,37 +40,6 @@ end
 -- =========================
 local DEFAULT_SPELL_ID = 1239535
 
--- Membership sets used only for fast instance lookups.
-local TWW_DELVE_INSTANCE_IDS = {
-  [2664] = true,
-  [2679] = true,
-  [2680] = true,
-  [2681] = true,
-  [2682] = true,
-  [2683] = true,
-  [2684] = true,
-  [2685] = true,
-  [2686] = true,
-  [2687] = true,
-  [2688] = true,
-  [2689] = true,
-  [2690] = true,
-}
-
-local MIDNIGHT_DELVE_INSTANCE_IDS = {
-  [2933] = true,
-  [2952] = true,
-  [2953] = true,
-  [2961] = true,
-  [2962] = true,
-  [2963] = true,
-  [2964] = true,
-  [2965] = true,
-  [2966] = true,
-  [2979] = true,
-  [3003] = true,
-}
-
 local TWW_DELVE_SPELL_ID = 1239535
 local MIDNIGHT_DELVE_SPELL_ID = 1270179
 
@@ -179,25 +148,8 @@ local function InScenarioInstance()
   return instanceType == "scenario"
 end
 
-local function GetCurrentDelveGroup()
-  local _, instanceType, _, _, _, _, _, instanceID = GetInstanceInfo()
-  if instanceType ~= "scenario" then
-    return nil
-  end
-
-  if TWW_DELVE_INSTANCE_IDS[instanceID] then
-    return "tww"
-  end
-
-  if MIDNIGHT_DELVE_INSTANCE_IDS[instanceID] then
-    return "midnight"
-  end
-
-  return nil
-end
-
 local function GetActiveSpellID()
-  local delveGroup = GetCurrentDelveGroup()
+  local delveGroup = _G.GetCurrentDelveGroup and _G.GetCurrentDelveGroup()
   if delveGroup == "tww" then
     return TWW_DELVE_SPELL_ID
   end
@@ -553,7 +505,7 @@ local function SetTickAndBorderTheme(delveGroup)
 end
 
 local function SetTickAndBorderThemeForCurrentState()
-  local delveGroup = GetCurrentDelveGroup()
+  local delveGroup = _G.GetCurrentDelveGroup and _G.GetCurrentDelveGroup()
 
   if delveGroup then
     activeThemeGroup = delveGroup

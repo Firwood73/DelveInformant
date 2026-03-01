@@ -312,6 +312,12 @@ local function GetCompanionInfo()
 end
 
 local function UpdateDisplay()
+  local delveGroup = _G.GetCurrentDelveGroup and _G.GetCurrentDelveGroup()
+  if delveGroup ~= "midnight" then
+    f:Hide()
+    return
+  end
+
   local companionInfo = GetCompanionInfo()
   if not companionInfo then
     f:Hide()
