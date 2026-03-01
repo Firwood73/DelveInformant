@@ -205,9 +205,14 @@ SlashCmdList["VALEERASANGUINARMOVE"] = function()
 end
 
 local evt = CreateFrame("Frame")
+local function TryRegisterEvent(frame, eventName)
+  local ok = pcall(frame.RegisterEvent, frame, eventName)
+  return ok
+end
+
 evt:RegisterEvent("PLAYER_ENTERING_WORLD")
-evt:RegisterEvent("DELVE_COMPANION_LEVEL_CHANGED")
 evt:RegisterEvent("QUEST_TURNED_IN")
+TryRegisterEvent(evt, "DELVE_COMPANION_LEVEL_CHANGED")
 evt:SetScript("OnEvent", function()
   UpdateDisplay()
 end)
