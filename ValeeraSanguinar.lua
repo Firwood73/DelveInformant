@@ -9,7 +9,7 @@ local db = DelveInformantDB.ValeeraSanguinar
 local FACTION_ID = 2744
 local UPDATE_INTERVAL = 0.25
 
-local BAR_WIDTH, BAR_HEIGHT = 250, 25
+local BAR_WIDTH, BAR_HEIGHT = 250, 42
 local BAR_POINT, BAR_X, BAR_Y = "CENTER", 0, -34
 
 local BG_R, BG_G, BG_B, BG_A = 0, 0, 0, 0.35
@@ -61,7 +61,7 @@ f:SetBackdropColor(BG_R, BG_G, BG_B, BG_A)
 f:SetBackdropBorderColor(BORDER_R, BORDER_G, BORDER_B, BORDER_A)
 
 local bar = CreateFrame("StatusBar", nil, f)
-bar:SetPoint("TOPLEFT", 4, -4)
+bar:SetPoint("TOPLEFT", 4, -20)
 bar:SetPoint("BOTTOMRIGHT", -4, 4)
 bar:SetMinMaxValues(0, 1)
 bar:SetValue(0)
@@ -69,23 +69,21 @@ bar:SetStatusBarTexture("Interface\\TARGETINGFRAME\\UI-StatusBar")
 bar:SetStatusBarColor(BAR_R, BAR_G, BAR_B, BAR_A)
 
 local nameText = bar:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
-nameText:SetPoint("LEFT", bar, "LEFT", 6, 0)
+nameText:SetPoint("BOTTOMLEFT", bar, "TOPLEFT", 2, 2)
 nameText:SetJustifyH("LEFT")
 
+local levelText = bar:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
+levelText:SetPoint("BOTTOMRIGHT", bar, "TOPRIGHT", -2, 2)
+levelText:SetJustifyH("RIGHT")
+
 local valueText = bar:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
-valueText:SetPoint("RIGHT", bar, "RIGHT", -6, 0)
-valueText:SetJustifyH("RIGHT")
+valueText:SetPoint("CENTER", bar, "CENTER", 0, 0)
+valueText:SetJustifyH("CENTER")
 
 local helperText = f:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
 helperText:SetPoint("TOP", f, "BOTTOM", 0, -2)
 helperText:SetText("/vslock /vsunlock /vsmove")
 helperText:SetShown(false)
-
-local function CommaValue(value)
-  local left, num, right = tostring(value):match("^([^%d]*%d)(%d*)(.-)$")
-  if not left then return tostring(value) end
-  return left .. (num:reverse():gsub("(%d%d%d)", "%1,"):reverse()) .. right
-end
 
 local function RestorePosition()
   EnsureDBDefaults()
@@ -143,19 +141,25 @@ local function UpdateDisplay()
   local needed = max - min
 
   local isCapped = (needed <= 0) or data.isCapped
+  local percent = 100
   if isCapped then
     bar:SetValue(1)
-    valueText:SetText("Max")
   else
     local pct = earned / needed
     if pct < 0 then pct = 0 end
     if pct > 1 then pct = 1 end
+    percent = pct * 100
     bar:SetValue(pct)
-    valueText:SetText(string.format("%s / %s (%.0f%%)", CommaValue(earned), CommaValue(needed), pct * 100))
   end
+
+  valueText:SetText(string.format("%.0f%%", percent))
 
   local name = data.name or "Valeera Sanguinar"
   nameText:SetText(name)
+
+  local level = data.renownLevel or data.currentStanding or 0
+  levelText:SetText(string.format("%d/60", level))
+
   f:Show()
 end
 
