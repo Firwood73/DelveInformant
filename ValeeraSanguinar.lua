@@ -17,6 +17,37 @@ local BORDER_R, BORDER_G, BORDER_B, BORDER_A = 0.5921568627, 0.5254901961, 0.968
 
 local VALEERA_NAME = "Valeera Sanguinar"
 
+local function GetFactionCompanionInfo()
+  if not GetNumFactions or not GetFactionInfo then
+    return nil
+  end
+
+  local numFactions = GetNumFactions()
+  for i = 1, numFactions do
+    local name, _, standingID, barMin, barMax, barValue, _, _, _, _, _, _, _, _, _, _, _, factionID = GetFactionInfo(i)
+    if type(name) == "string" and string.find(string.lower(name), string.lower(VALEERA_NAME), 1, true) then
+      local minValue = tonumber(barMin) or 0
+      local maxValue = tonumber(barMax) or 0
+      local value = tonumber(barValue) or 0
+      local totalXP = maxValue - minValue
+      local currentXP = value - minValue
+
+      if totalXP < 0 then totalXP = 0 end
+      if currentXP < 0 then currentXP = 0 end
+      if totalXP > 0 and currentXP > totalXP then currentXP = totalXP end
+
+      return {
+        level = tonumber(standingID) or 0,
+        currentXP = currentXP,
+        totalXP = totalXP,
+        factionID = factionID,
+      }
+    end
+  end
+
+  return nil
+end
+
 local function Round(x)
   if x >= 0 then
     return math.floor(x + 0.5)
@@ -133,25 +164,23 @@ f:SetScript("OnDragStop", function(self)
 end)
 
 local function GetCompanionInfo()
-  if not C_Delves or not C_Delves.GetCompanionLevel or not C_Delves.GetCompanionXP then
-    return nil
+  if C_Delves and C_Delves.GetCompanionLevel and C_Delves.GetCompanionXP then
+    local level = tonumber(C_Delves.GetCompanionLevel())
+    local currentXP, totalXP = C_Delves.GetCompanionXP()
+
+    currentXP = tonumber(currentXP)
+    totalXP = tonumber(totalXP)
+
+    if level and currentXP and totalXP then
+      return {
+        level = level,
+        currentXP = currentXP,
+        totalXP = totalXP,
+      }
+    end
   end
 
-  local level = tonumber(C_Delves.GetCompanionLevel())
-  local currentXP, totalXP = C_Delves.GetCompanionXP()
-
-  currentXP = tonumber(currentXP)
-  totalXP = tonumber(totalXP)
-
-  if not level or not currentXP or not totalXP then
-    return nil
-  end
-
-  return {
-    level = level,
-    currentXP = currentXP,
-    totalXP = totalXP,
-  }
+  return GetFactionCompanionInfo()
 end
 
 local function UpdateDisplay()
@@ -208,6 +237,10 @@ local evt = CreateFrame("Frame")
 
 evt:RegisterEvent("PLAYER_ENTERING_WORLD")
 evt:RegisterEvent("QUEST_TURNED_IN")
+evt:RegisterEvent("CHAT_MSG_COMBAT_FACTION_CHANGE")
+evt:RegisterEvent("UPDATE_FACTION")
+evt:RegisterEvent("PLAYER_LEVEL_UP")
+evt:RegisterEvent("ZONE_CHANGED_NEW_AREA")
 evt:SetScript("OnEvent", function()
   UpdateDisplay()
 end)
