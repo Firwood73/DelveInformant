@@ -6,6 +6,6 @@
 ## SavedVariables: DelveInformantDB
 ## OptionalDeps: LibSharedMedia-3.0
 
+FriendshipUtils.lua
 NemesisStrongbox.lua
 ValeeraSanguinar.lua
-FriendshipUtils.lua
