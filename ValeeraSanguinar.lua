@@ -7,8 +7,6 @@ DelveInformantDB.ValeeraSanguinar = DelveInformantDB.ValeeraSanguinar or {}
 local db = DelveInformantDB.ValeeraSanguinar
 
 local UPDATE_INTERVAL = 0.25
-local FADE_IN_SECONDS = 1.0
-local FADE_OUT_SECONDS = FADE_IN_SECONDS
 
 local BAR_WIDTH, BAR_HEIGHT = 250, 25
 local BAR_POINT, BAR_X, BAR_Y = "CENTER", 0, -34
@@ -149,12 +147,6 @@ local function SnapPoint(frame, x, y)
   return Snap(frame, x or 0), Snap(frame, y or 0)
 end
 
-local function Clamp(v, lo, hi)
-  if v < lo then return lo end
-  if v > hi then return hi end
-  return v
-end
-
 local function FormatNumber(n)
   local s = tostring(math.floor(tonumber(n) or 0))
   while true do
@@ -181,159 +173,17 @@ f:SetFrameStrata("HIGH")
 f:SetMovable(true)
 f:EnableMouse(true)
 f:RegisterForDrag("LeftButton")
-f:SetAlpha(0)
-f:Hide()
 
-local function CreateCustomTooltipBorder(parent)
-  local border = CreateFrame("Frame", nil, parent)
-  border:SetAllPoints(parent)
-  border:SetFrameLevel(parent:GetFrameLevel() + 3)
-
-  local texturePath = "Interface\\AddOns\\ChatChange\\Textures\\UI-Tooltip-Border"
-
-  local sliceSize = 8
-  local usedSize = 24
-  local uvSlice = sliceSize / usedSize
-
-  local function ApplySlice(tex, left, right, top, bottom)
-    tex:SetTexture(texturePath)
-    tex:SetVertexColor(BORDER_R, BORDER_G, BORDER_B, BORDER_A)
-    tex:SetTexCoord(
-      left * uvSlice,
-      right * uvSlice,
-      top * uvSlice,
-      bottom * uvSlice
-    )
-  end
-
-  local corners = {
-    tl = border:CreateTexture(nil, "BORDER"),
-    tr = border:CreateTexture(nil, "BORDER"),
-    bl = border:CreateTexture(nil, "BORDER"),
-    br = border:CreateTexture(nil, "BORDER"),
-  }
-
-  corners.tl:SetSize(sliceSize, sliceSize)
-  corners.tl:SetPoint("TOPLEFT", border, "TOPLEFT")
-  ApplySlice(corners.tl, 0, 1, 0, 1)
-
-  corners.tr:SetSize(sliceSize, sliceSize)
-  corners.tr:SetPoint("TOPRIGHT", border, "TOPRIGHT")
-  ApplySlice(corners.tr, 2, 3, 0, 1)
-
-  corners.bl:SetSize(sliceSize, sliceSize)
-  corners.bl:SetPoint("BOTTOMLEFT", border, "BOTTOMLEFT")
-  ApplySlice(corners.bl, 0, 1, 2, 3)
-
-  corners.br:SetSize(sliceSize, sliceSize)
-  corners.br:SetPoint("BOTTOMRIGHT", border, "BOTTOMRIGHT")
-  ApplySlice(corners.br, 2, 3, 2, 3)
-
-  local edgePools = {
-    t = {},
-    b = {},
-    l = {},
-    r = {},
-  }
-
-  local function AcquireEdge(which, index)
-    local pool = edgePools[which]
-    if not pool[index] then
-      pool[index] = border:CreateTexture(nil, "BORDER")
-      pool[index]:SetTexture(texturePath)
-      pool[index]:SetVertexColor(BORDER_R, BORDER_G, BORDER_B, BORDER_A)
-    end
-    pool[index]:Show()
-    return pool[index]
-  end
-
-  local function HideUnused(which, used)
-    local pool = edgePools[which]
-    for i = used + 1, #pool do
-      pool[i]:Hide()
-    end
-  end
-
-  local function BuildHorizontal(which, yAnchor, texTop, texBottom, width)
-    local span = math.max(0, width - (sliceSize * 2))
-    local fullTiles = math.floor(span / sliceSize)
-    local remainder = span - (fullTiles * sliceSize)
-    local count = 0
-
-    local x = sliceSize
-    for _ = 1, fullTiles do
-      count = count + 1
-      local tex = AcquireEdge(which, count)
-      tex:ClearAllPoints()
-      tex:SetPoint(yAnchor, border, yAnchor, x, 0)
-      tex:SetSize(sliceSize, sliceSize)
-      ApplySlice(tex, 1, 2, texTop, texBottom)
-      x = x + sliceSize
-    end
-
-    if remainder > 0 then
-      count = count + 1
-      local tex = AcquireEdge(which, count)
-      tex:ClearAllPoints()
-      tex:SetPoint(yAnchor, border, yAnchor, x, 0)
-      tex:SetSize(remainder, sliceSize)
-      ApplySlice(tex, 1, 1 + (remainder / sliceSize), texTop, texBottom)
-    end
-
-    HideUnused(which, count)
-  end
-
-  local function Rebuild()
-    local width = math.max(sliceSize * 2, border:GetWidth() or 0)
-    local height = math.max(sliceSize * 2, border:GetHeight() or 0)
-
-    for _, corner in pairs(corners) do
-      corner:SetVertexColor(BORDER_R, BORDER_G, BORDER_B, BORDER_A)
-    end
-
-    BuildHorizontal("t", "TOPLEFT", 0, 1, width)
-    BuildHorizontal("b", "BOTTOMLEFT", 2, 3, width)
-
-    local sideSpan = math.max(0, height - (sliceSize * 2))
-    local fullTiles = math.floor(sideSpan / sliceSize)
-    local remainder = sideSpan - (fullTiles * sliceSize)
-
-    local function BuildSide(which, point, texLeft, texRight)
-      local count = 0
-      local y = -sliceSize
-      for _ = 1, fullTiles do
-        count = count + 1
-        local tex = AcquireEdge(which, count)
-        tex:ClearAllPoints()
-        tex:SetPoint(point, border, point, 0, y)
-        tex:SetSize(sliceSize, sliceSize)
-        ApplySlice(tex, texLeft, texRight, 1, 2)
-        y = y - sliceSize
-      end
-
-      if remainder > 0 then
-        count = count + 1
-        local tex = AcquireEdge(which, count)
-        tex:ClearAllPoints()
-        tex:SetPoint(point, border, point, 0, y)
-        tex:SetSize(sliceSize, remainder)
-        ApplySlice(tex, texLeft, texRight, 1, 1 + (remainder / sliceSize))
-      end
-
-      HideUnused(which, count)
-    end
-
-    BuildSide("l", "TOPLEFT", 0, 1)
-    BuildSide("r", "TOPRIGHT", 2, 3)
-  end
-
-  border:SetScript("OnSizeChanged", Rebuild)
-  Rebuild()
-
-  return border
-end
-
-local borderFrame = CreateCustomTooltipBorder(f)
+local borderFrame = CreateFrame("Frame", nil, f, "BackdropTemplate")
+borderFrame:SetAllPoints(f)
+borderFrame:SetFrameLevel(f:GetFrameLevel() + 3)
+borderFrame:SetBackdrop({
+  edgeFile = "Interface\\AddOns\\ChatChange\\Textures\\UI-Tooltip-Border",
+  tile = true,
+  edgeSize = 16,
+  insets = { left = 4, right = 4, top = 4, bottom = 4 },
+})
+borderFrame:SetBackdropBorderColor(BORDER_R, BORDER_G, BORDER_B, BORDER_A)
 
 local bg = f:CreateTexture(nil, "BACKGROUND")
 bg:SetPoint("TOPLEFT", f, "TOPLEFT", 4, -4)
@@ -376,79 +226,6 @@ local isHovered = false
 local lastEarned = 0
 local lastNeeded = 0
 local lastIsCapped = false
-
-local fadeActive, fadeElapsed, fadeDuration = false, 0, 0
-local fadeFrom, fadeTo = 0, 0
-local fadeHideOnDone = false
-local lastShownState = false
-
-local function StartFadeTo(targetAlpha, duration, hideOnDone)
-  targetAlpha = Clamp(targetAlpha or 0, 0, 1)
-  duration = tonumber(duration) or 0
-  hideOnDone = not not hideOnDone
-
-  if fadeActive and fadeTo == targetAlpha and fadeHideOnDone == hideOnDone then
-    return
-  end
-
-  local currentAlpha = Clamp(f:GetAlpha() or 0, 0, 1)
-  if not fadeActive and math.abs(currentAlpha - targetAlpha) < 0.0001 and not hideOnDone then
-    return
-  end
-
-  if not f:IsShown() then
-    f:Show()
-  end
-
-  fadeActive = true
-  fadeElapsed = 0
-  fadeDuration = math.max(0, duration)
-  fadeFrom = currentAlpha
-  fadeTo = targetAlpha
-  fadeHideOnDone = hideOnDone
-
-  if fadeDuration == 0 then
-    f:SetAlpha(fadeTo)
-    fadeActive = false
-    if fadeHideOnDone and fadeTo <= 0 then
-      f:Hide()
-    end
-  end
-end
-
-local function HideFrameWithFade()
-  lastShownState = false
-
-  if not f:IsShown() and (f:GetAlpha() or 0) <= 0 then
-    f:SetAlpha(0)
-    f:Hide()
-    fadeActive = false
-    return
-  end
-
-  if fadeActive and fadeTo == 0 and fadeHideOnDone then
-    return
-  end
-
-  StartFadeTo(0, FADE_OUT_SECONDS, true)
-end
-
-local function ShowFrameWithFadeIfNeeded()
-  if not lastShownState then
-    lastShownState = true
-    f:SetAlpha(0)
-    f:Show()
-    StartFadeTo(1, FADE_IN_SECONDS, false)
-    return
-  end
-
-  f:Show()
-  if (fadeActive and fadeTo == 1 and not fadeHideOnDone) or ((f:GetAlpha() or 0) >= 0.999 and not fadeActive) then
-    return
-  end
-
-  StartFadeTo(1, FADE_IN_SECONDS, false)
-end
 
 local function UpdateValueText()
   if lastIsCapped then
@@ -537,13 +314,13 @@ end
 local function UpdateDisplay()
   local delveGroup = _G.GetCurrentDelveGroup and _G.GetCurrentDelveGroup()
   if delveGroup ~= "midnight" then
-    HideFrameWithFade()
+    f:Hide()
     return
   end
 
   local companionInfo = GetCompanionInfo()
   if not companionInfo then
-    HideFrameWithFade()
+    f:Hide()
     return
   end
 
@@ -574,7 +351,7 @@ local function UpdateDisplay()
   levelText:SetText(string.format("Level %d", level))
   UpdateValueText()
 
-  ShowFrameWithFadeIfNeeded()
+  f:Show()
 end
 
 f:SetScript("OnEnter", function()
@@ -616,20 +393,6 @@ end)
 
 local elapsed = 0
 f:SetScript("OnUpdate", function(_, dt)
-  if fadeActive then
-    fadeElapsed = fadeElapsed + dt
-    local p = (fadeDuration > 0) and math.min(fadeElapsed / fadeDuration, 1) or 1
-    local a = fadeFrom + (fadeTo - fadeFrom) * p
-    f:SetAlpha(a)
-
-    if p >= 1 then
-      fadeActive = false
-      if fadeHideOnDone and fadeTo <= 0 then
-        f:Hide()
-      end
-    end
-  end
-
   elapsed = elapsed + dt
   if elapsed >= UPDATE_INTERVAL then
     elapsed = 0
