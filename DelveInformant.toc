@@ -1,0 +1,9 @@
+## Interface: 120000
+## Title: DelveInformant by |cFF69CCF0Jeffrey|r
+## Notes: Standalone tracker for Delve objectives
+## Author: You
+## Version: 1.0.0
+## SavedVariables: DelveInformantDB
+## OptionalDeps: LibSharedMedia-3.0
+
+DelveInformant.lua
