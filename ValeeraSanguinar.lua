@@ -7,6 +7,8 @@ DelveInformantDB.ValeeraSanguinar = DelveInformantDB.ValeeraSanguinar or {}
 local db = DelveInformantDB.ValeeraSanguinar
 
 local UPDATE_INTERVAL = 0.25
+local FADE_IN_SECONDS = 1.0
+local FADE_OUT_SECONDS = FADE_IN_SECONDS
 
 local BAR_WIDTH, BAR_HEIGHT = 250, 25
 local BAR_POINT, BAR_X, BAR_Y = "CENTER", 0, -34
@@ -147,6 +149,12 @@ local function SnapPoint(frame, x, y)
   return Snap(frame, x or 0), Snap(frame, y or 0)
 end
 
+local function Clamp(v, lo, hi)
+  if v < lo then return lo end
+  if v > hi then return hi end
+  return v
+end
+
 local function FormatNumber(n)
   local s = tostring(math.floor(tonumber(n) or 0))
   while true do
@@ -173,6 +181,8 @@ f:SetFrameStrata("HIGH")
 f:SetMovable(true)
 f:EnableMouse(true)
 f:RegisterForDrag("LeftButton")
+f:SetAlpha(0)
+f:Hide()
 
 local borderFrame = CreateFrame("Frame", nil, f, "BackdropTemplate")
 borderFrame:SetAllPoints(f)
@@ -226,6 +236,79 @@ local isHovered = false
 local lastEarned = 0
 local lastNeeded = 0
 local lastIsCapped = false
+
+local fadeActive, fadeElapsed, fadeDuration = false, 0, 0
+local fadeFrom, fadeTo = 0, 0
+local fadeHideOnDone = false
+local lastShownState = false
+
+local function StartFadeTo(targetAlpha, duration, hideOnDone)
+  targetAlpha = Clamp(targetAlpha or 0, 0, 1)
+  duration = tonumber(duration) or 0
+  hideOnDone = not not hideOnDone
+
+  if fadeActive and fadeTo == targetAlpha and fadeHideOnDone == hideOnDone then
+    return
+  end
+
+  local currentAlpha = Clamp(f:GetAlpha() or 0, 0, 1)
+  if not fadeActive and math.abs(currentAlpha - targetAlpha) < 0.0001 and not hideOnDone then
+    return
+  end
+
+  if not f:IsShown() then
+    f:Show()
+  end
+
+  fadeActive = true
+  fadeElapsed = 0
+  fadeDuration = math.max(0, duration)
+  fadeFrom = currentAlpha
+  fadeTo = targetAlpha
+  fadeHideOnDone = hideOnDone
+
+  if fadeDuration == 0 then
+    f:SetAlpha(fadeTo)
+    fadeActive = false
+    if fadeHideOnDone and fadeTo <= 0 then
+      f:Hide()
+    end
+  end
+end
+
+local function HideFrameWithFade()
+  lastShownState = false
+
+  if not f:IsShown() and (f:GetAlpha() or 0) <= 0 then
+    f:SetAlpha(0)
+    f:Hide()
+    fadeActive = false
+    return
+  end
+
+  if fadeActive and fadeTo == 0 and fadeHideOnDone then
+    return
+  end
+
+  StartFadeTo(0, FADE_OUT_SECONDS, true)
+end
+
+local function ShowFrameWithFadeIfNeeded()
+  if not lastShownState then
+    lastShownState = true
+    f:SetAlpha(0)
+    f:Show()
+    StartFadeTo(1, FADE_IN_SECONDS, false)
+    return
+  end
+
+  f:Show()
+  if (fadeActive and fadeTo == 1 and not fadeHideOnDone) or ((f:GetAlpha() or 0) >= 0.999 and not fadeActive) then
+    return
+  end
+
+  StartFadeTo(1, FADE_IN_SECONDS, false)
+end
 
 local function UpdateValueText()
   if lastIsCapped then
@@ -314,13 +397,13 @@ end
 local function UpdateDisplay()
   local delveGroup = _G.GetCurrentDelveGroup and _G.GetCurrentDelveGroup()
   if delveGroup ~= "midnight" then
-    f:Hide()
+    HideFrameWithFade()
     return
   end
 
   local companionInfo = GetCompanionInfo()
   if not companionInfo then
-    f:Hide()
+    HideFrameWithFade()
     return
   end
 
@@ -351,7 +434,7 @@ local function UpdateDisplay()
   levelText:SetText(string.format("Level %d", level))
   UpdateValueText()
 
-  f:Show()
+  ShowFrameWithFadeIfNeeded()
 end
 
 f:SetScript("OnEnter", function()
@@ -393,6 +476,20 @@ end)
 
 local elapsed = 0
 f:SetScript("OnUpdate", function(_, dt)
+  if fadeActive then
+    fadeElapsed = fadeElapsed + dt
+    local p = (fadeDuration > 0) and math.min(fadeElapsed / fadeDuration, 1) or 1
+    local a = fadeFrom + (fadeTo - fadeFrom) * p
+    f:SetAlpha(a)
+
+    if p >= 1 then
+      fadeActive = false
+      if fadeHideOnDone and fadeTo <= 0 then
+        f:Hide()
+      end
+    end
+  end
+
   elapsed = elapsed + dt
   if elapsed >= UPDATE_INTERVAL then
     elapsed = 0
