@@ -1,12 +1,11 @@
 -- ValeeraSanguinar.lua
--- Reputation bar for Valeera Sanguinar (factionID 2744).
+-- Companion progress bar for Valeera Sanguinar via C_Delves APIs.
 
 DelveInformantDB = DelveInformantDB or {}
 DelveInformantDB.ValeeraSanguinar = DelveInformantDB.ValeeraSanguinar or {}
 
 local db = DelveInformantDB.ValeeraSanguinar
 
-local FACTION_ID = 2744
 local UPDATE_INTERVAL = 0.25
 
 local BAR_WIDTH, BAR_HEIGHT = 250, 42
@@ -16,7 +15,7 @@ local BG_R, BG_G, BG_B, BG_A = 0, 0, 0, 0.35
 local BAR_R, BAR_G, BAR_B, BAR_A = 0.72, 0.18, 0.62, 1
 local BORDER_R, BORDER_G, BORDER_B, BORDER_A = 0.5921568627, 0.5254901961, 0.968627451, 0.76
 
-local MAX_RENOWN_LEVEL = 60
+local VALEERA_NAME = "Valeera Sanguinar"
 
 local function Round(x)
   if x >= 0 then
@@ -133,62 +132,41 @@ f:SetScript("OnDragStop", function(self)
   SavePosition()
 end)
 
-local function GetFactionData()
-  if not C_Reputation or not C_Reputation.GetFactionDataByID then
-    return nil
-  end
-  return C_Reputation.GetFactionDataByID(FACTION_ID)
-end
-
-local function GetFactionInfoLegacy()
-  if not GetFactionInfoByID then
+local function GetCompanionInfo()
+  if not C_Delves or not C_Delves.GetCompanionLevel or not C_Delves.GetCompanionXP then
     return nil
   end
 
-  local name, _, standingID, barMin, barMax, barValue, _, _, _, _, _, _, factionID = GetFactionInfoByID(FACTION_ID)
-  if factionID ~= FACTION_ID then
+  local level = tonumber(C_Delves.GetCompanionLevel())
+  local currentXP, totalXP = C_Delves.GetCompanionXP()
+
+  currentXP = tonumber(currentXP)
+  totalXP = tonumber(totalXP)
+
+  if not level or not currentXP or not totalXP then
     return nil
   end
 
   return {
-    name = name,
-    standingID = standingID,
-    barMin = barMin,
-    barMax = barMax,
-    barValue = barValue,
+    level = level,
+    currentXP = currentXP,
+    totalXP = totalXP,
   }
 end
 
 local function UpdateDisplay()
-  local data = GetFactionData()
-  local legacy = GetFactionInfoLegacy()
-
-  if not data and not legacy then
+  local companionInfo = GetCompanionInfo()
+  if not companionInfo then
     f:Hide()
     return
   end
 
-  local name = (data and data.name) or (legacy and legacy.name) or "Valeera Sanguinar"
-  local level = 0
-  local current, min, max = 0, 0, 0
-
-  if legacy and legacy.barMax and legacy.barMax > 0 then
-    level = legacy.standingID or 0
-    current = legacy.barValue or 0
-    min = legacy.barMin or 0
-    max = legacy.barMax or 0
-  else
-    level = (data and (data.renownLevel or data.currentStanding)) or 0
-    current = (data and data.currentStanding) or 0
-    min = (data and data.currentReactionThreshold) or 0
-    max = (data and data.nextReactionThreshold) or 0
-  end
-
-  local earned = current - min
-  local needed = max - min
-
-  local isCapped = (needed <= 0) or (data and data.isCapped)
+  local level = companionInfo.level
+  local earned = companionInfo.currentXP
+  local needed = companionInfo.totalXP
+  local isCapped = needed <= 0
   local percent = 100
+
   if isCapped then
     bar:SetValue(1)
   else
@@ -199,8 +177,8 @@ local function UpdateDisplay()
     bar:SetValue(pct)
   end
 
-  nameText:SetText(name)
-  levelText:SetText(string.format("%d/%d", level, MAX_RENOWN_LEVEL))
+  nameText:SetText(VALEERA_NAME)
+  levelText:SetText(string.format("Level %d", level))
 
   if isCapped then
     valueText:SetText("Max")
@@ -228,8 +206,7 @@ end
 
 local evt = CreateFrame("Frame")
 evt:RegisterEvent("PLAYER_ENTERING_WORLD")
-evt:RegisterEvent("UPDATE_FACTION")
-evt:RegisterEvent("CHAT_MSG_COMBAT_FACTION_CHANGE")
+evt:RegisterEvent("DELVE_COMPANION_LEVEL_CHANGED")
 evt:RegisterEvent("QUEST_TURNED_IN")
 evt:SetScript("OnEvent", function()
   UpdateDisplay()
