@@ -36,6 +36,12 @@ local function FetchStatusbarTexture()
   return "Interface\\TARGETINGFRAME\\UI-StatusBar"
 end
 
+local function ApplyStatusbarTexture(statusbar)
+  if statusbar and statusbar.SetStatusBarTexture then
+    statusbar:SetStatusBarTexture(FetchStatusbarTexture())
+  end
+end
+
 local function GetCompanionFactionID()
   if C_Delves and C_Delves.GetCompanionFactionID then
     local factionID = tonumber(C_Delves.GetCompanionFactionID())
@@ -185,8 +191,14 @@ bar:SetPoint("TOPLEFT", 4, -4)
 bar:SetPoint("BOTTOMRIGHT", -4, 4)
 bar:SetMinMaxValues(0, 1)
 bar:SetValue(0)
-bar:SetStatusBarTexture(FetchStatusbarTexture())
+ApplyStatusbarTexture(bar)
 bar:SetStatusBarColor(BAR_R, BAR_G, BAR_B, BAR_A)
+
+if LSM and LSM.RegisterCallback then
+  LSM.RegisterCallback(bar, "LibSharedMedia_Registered", function()
+    ApplyStatusbarTexture(bar)
+  end)
+end
 
 local nameText = bar:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
 nameText:SetPoint("BOTTOMLEFT", bar, "TOPLEFT", 2, 2)
