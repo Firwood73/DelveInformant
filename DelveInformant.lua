@@ -1,4 +1,4 @@
--- NemesisStrongbox.lua
+-- DelveInformant.lua
 -- Reads C_Spell.GetSpellDescription(activeDelveSpellID) and parses "x / y".
 -- Spell reports REMAINING / TOTAL (starts 4/4 then 3/4...).
 -- Spell can sometimes report "0 / 0" on completion/reload; we coerce that to 0 / MAX_SUPPORTED_TOTAL.
@@ -13,7 +13,7 @@
 --   - Before fading the frame IN, bar snaps to the CURRENT parsed value (no showing stale/cached values)
 --   - Supports dynamic layouts for totals 1..4 (0..3 inner dividers)
 
-NemesisStrongboxDB = NemesisStrongboxDB or {}
+DelveInformantDB = DelveInformantDB or {}
 
 -- =========================
 -- LibSharedMedia (optional)
@@ -144,7 +144,7 @@ local function SafeToNumber(x)
 end
 
 local function NS_Print(msg)
-  DEFAULT_CHAT_FRAME:AddMessage("|cFF69CCF0NemesisStrongbox|r: " .. tostring(msg))
+  DEFAULT_CHAT_FRAME:AddMessage("|cFF69CCF0DelveInformant|r: " .. tostring(msg))
 end
 
 local function Clamp(v, lo, hi)
@@ -312,7 +312,7 @@ end
 -- =========================
 -- ROOT FRAME (movable)
 -- =========================
-local f = CreateFrame("Frame", "NemesisStrongboxFrame", UIParent)
+local f = CreateFrame("Frame", "DelveInformantFrame", UIParent)
 f:SetScale(BAR_SCALE)
 f:SetSize(Snap(f, BAR_WIDTH), Snap(f, BAR_HEIGHT))
 f:SetAlpha(0)
@@ -617,11 +617,11 @@ msg:SetAlpha(0)
 -- DB: position + lock state
 -- =========================
 local function EnsureDBDefaults()
-  if type(NemesisStrongboxDB) ~= "table" then
-    NemesisStrongboxDB = {}
+  if type(DelveInformantDB) ~= "table" then
+    DelveInformantDB = {}
   end
-  if NemesisStrongboxDB.locked == nil then
-    NemesisStrongboxDB.locked = true
+  if DelveInformantDB.locked == nil then
+    DelveInformantDB.locked = true
   end
 end
 
@@ -632,15 +632,15 @@ local function SavePosition()
   xOfs = Snap(f, xOfs or 0)
   yOfs = Snap(f, yOfs or 0)
 
-  NemesisStrongboxDB.pos = NemesisStrongboxDB.pos or {}
-  NemesisStrongboxDB.pos.point = point
-  NemesisStrongboxDB.pos.relativePoint = relativePoint
-  NemesisStrongboxDB.pos.x = xOfs
-  NemesisStrongboxDB.pos.y = yOfs
+  DelveInformantDB.pos = DelveInformantDB.pos or {}
+  DelveInformantDB.pos.point = point
+  DelveInformantDB.pos.relativePoint = relativePoint
+  DelveInformantDB.pos.x = xOfs
+  DelveInformantDB.pos.y = yOfs
 end
 
 local function RestorePosition()
-  local pos = NemesisStrongboxDB.pos
+  local pos = DelveInformantDB.pos
   f:ClearAllPoints()
 
   if pos and pos.point and pos.relativePoint and pos.x and pos.y then
@@ -651,7 +651,7 @@ local function RestorePosition()
 end
 
 local function ApplyLockState()
-  if NemesisStrongboxDB.locked then
+  if DelveInformantDB.locked then
     f:EnableMouse(false)
     f:RegisterForDrag()
     f:SetScript("OnDragStart", nil)
@@ -670,9 +670,9 @@ local function ApplyLockState()
 end
 
 local function SetLocked(isLocked)
-  NemesisStrongboxDB.locked = not not isLocked
+  DelveInformantDB.locked = not not isLocked
   ApplyLockState()
-  NS_Print(NemesisStrongboxDB.locked and "Locked." or "Unlocked. Drag to move.")
+  NS_Print(DelveInformantDB.locked and "Locked." or "Unlocked. Drag to move.")
 end
 
 -- =========================
@@ -989,14 +989,14 @@ end)
 -- =========================
 -- Commands
 -- =========================
-SLASH_NEMESISSTRONGBOXLOCK1 = "/nslock"
-SlashCmdList["NEMESISSTRONGBOXLOCK"] = function() SetLocked(true) end
+SLASH_DELVEINFORMANTLOCK1 = "/nslock"
+SlashCmdList["DELVEINFORMANTLOCK"] = function() SetLocked(true) end
 
-SLASH_NEMESISSTRONGBOXUNLOCK1 = "/nsunlock"
-SlashCmdList["NEMESISSTRONGBOXUNLOCK"] = function() SetLocked(false) end
+SLASH_DELVEINFORMANTUNLOCK1 = "/nsunlock"
+SlashCmdList["DELVEINFORMANTUNLOCK"] = function() SetLocked(false) end
 
-SLASH_NEMESISSTRONGBOXMOVE1 = "/nsmove"
-SlashCmdList["NEMESISSTRONGBOXMOVE"] = function() SetLocked(not NemesisStrongboxDB.locked) end
+SLASH_DELVEINFORMANTMOVE1 = "/nsmove"
+SlashCmdList["DELVEINFORMANTMOVE"] = function() SetLocked(not DelveInformantDB.locked) end
 
 -- =========================
 -- Init
