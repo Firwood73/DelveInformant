@@ -357,6 +357,19 @@ local function GetValeeraFactionProgress()
   }
 end
 
+local function ShouldShowValeeraBar()
+  if ONLY_IN_SCENARIO_INSTANCES and not InScenarioInstance() then
+    return false
+  end
+
+  if not GetCurrentDelveGroup() then
+    return false
+  end
+
+  local hideNow = ShouldHideForScenarioStep()
+  return not hideNow
+end
+
 local function ShouldHideForScenarioStep()
   if type(HIDE_IF_SCENARIO_STEP_NAMES) ~= "table" or #HIDE_IF_SCENARIO_STEP_NAMES == 0 then
     return false, nil
@@ -784,6 +797,11 @@ local function FormatNumber(n)
 end
 
 local function UpdateValeeraBar()
+  if not ShouldShowValeeraBar() then
+    repFrame:Hide()
+    return
+  end
+
   local progress = GetValeeraFactionProgress()
   if not progress then
     repFrame:Hide()
