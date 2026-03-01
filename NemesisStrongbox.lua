@@ -303,8 +303,24 @@ local function ComputeFound(remaining, total)
   return found
 end
 
+local function GetFactionBarInfoByID(factionID)
+  if type(GetFactionInfoByID) == "function" then
+    local name, _, _, barMin, barMax, barValue = GetFactionInfoByID(factionID)
+    return name, barMin, barMax, barValue
+  end
+
+  if C_Reputation and C_Reputation.GetFactionDataByID then
+    local data = C_Reputation.GetFactionDataByID(factionID)
+    if data then
+      return data.name, data.barMin, data.barMax, data.barValue
+    end
+  end
+
+  return nil, nil, nil, nil
+end
+
 local function GetValeeraFactionProgress()
-  local name, _, _, barMin, barMax, barValue = GetFactionInfoByID(VALEERA_FACTION_ID)
+  local name, barMin, barMax, barValue = GetFactionBarInfoByID(VALEERA_FACTION_ID)
   if not name or barValue == nil then
     return nil
   end
