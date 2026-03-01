@@ -167,27 +167,31 @@ local function EnsureDBDefaults()
   if db.y == nil then db.y = BAR_Y end
 end
 
-local f = CreateFrame("Frame", "DelveInformantValeeraSanguinarFrame", UIParent, "BackdropTemplate")
+local f = CreateFrame("Frame", "DelveInformantValeeraSanguinarFrame", UIParent)
 f:SetSize(BAR_WIDTH, BAR_HEIGHT)
 f:SetFrameStrata("HIGH")
 f:SetMovable(true)
 f:EnableMouse(true)
 f:RegisterForDrag("LeftButton")
 
-f:SetBackdrop({
+local borderFrame = CreateFrame("Frame", nil, f, "BackdropTemplate")
+borderFrame:SetAllPoints(f)
+borderFrame:SetFrameLevel(f:GetFrameLevel() + 3)
+borderFrame:SetBackdrop({
   edgeFile = "Interface\\Tooltips\\UI-Tooltip-Border",
   tile = true,
   edgeSize = 16,
   insets = { left = 4, right = 4, top = 4, bottom = 4 },
 })
-f:SetBackdropBorderColor(BORDER_R, BORDER_G, BORDER_B, BORDER_A)
+borderFrame:SetBackdropBorderColor(BORDER_R, BORDER_G, BORDER_B, BORDER_A)
 
 local bg = f:CreateTexture(nil, "BACKGROUND")
-bg:SetAllPoints(f)
+bg:SetPoint("TOPLEFT", f, "TOPLEFT", 4, -4)
+bg:SetPoint("BOTTOMRIGHT", f, "BOTTOMRIGHT", -4, 4)
 bg:SetColorTexture(BG_R, BG_G, BG_B, BG_A)
 
 local bar = CreateFrame("StatusBar", nil, f)
-bar:SetFrameLevel(f:GetFrameLevel() + 1)
+bar:SetFrameLevel(f:GetFrameLevel() + 2)
 bar:SetPoint("TOPLEFT", 4, -4)
 bar:SetPoint("BOTTOMRIGHT", -4, 4)
 bar:SetMinMaxValues(0, 1)
