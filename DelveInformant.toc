@@ -8,3 +8,4 @@
 
 NemesisStrongbox.lua
 ValeeraSanguinar.lua
+FriendshipUtils.lua
