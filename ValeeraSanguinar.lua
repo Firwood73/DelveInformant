@@ -175,17 +175,19 @@ f:EnableMouse(true)
 f:RegisterForDrag("LeftButton")
 
 f:SetBackdrop({
-  bgFile = "Interface\\Tooltips\\UI-Tooltip-Background",
   edgeFile = "Interface\\Tooltips\\UI-Tooltip-Border",
   tile = true,
-  edgeSize = 12,
-  tileSize = 16,
+  edgeSize = 16,
   insets = { left = 4, right = 4, top = 4, bottom = 4 },
 })
-f:SetBackdropColor(BG_R, BG_G, BG_B, BG_A)
 f:SetBackdropBorderColor(BORDER_R, BORDER_G, BORDER_B, BORDER_A)
 
+local bg = f:CreateTexture(nil, "BACKGROUND")
+bg:SetAllPoints(f)
+bg:SetColorTexture(BG_R, BG_G, BG_B, BG_A)
+
 local bar = CreateFrame("StatusBar", nil, f)
+bar:SetFrameLevel(f:GetFrameLevel() + 1)
 bar:SetPoint("TOPLEFT", 4, -4)
 bar:SetPoint("BOTTOMRIGHT", -4, 4)
 bar:SetMinMaxValues(0, 1)
