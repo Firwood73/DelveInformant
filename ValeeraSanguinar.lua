@@ -8,12 +8,11 @@ local db = DelveInformantDB.ValeeraSanguinar
 
 local UPDATE_INTERVAL = 0.25
 
-local BAR_WIDTH, BAR_HEIGHT = 250, 42
+local BAR_WIDTH, BAR_HEIGHT = 250, 25
 local BAR_POINT, BAR_X, BAR_Y = "CENTER", 0, -34
 
 local BG_R, BG_G, BG_B, BG_A = 0, 0, 0, 0.35
-local BAR_R, BAR_G, BAR_B, BAR_A = 0.72, 0.18, 0.62, 1
-local BORDER_R, BORDER_G, BORDER_B, BORDER_A = 0.5921568627, 0.5254901961, 0.968627451, 0.76
+local BORDER_R, BORDER_G, BORDER_B, BORDER_A = 0.65, 0.05, 0.05, 0.9
 
 local VALEERA_NAME = "Valeera Sanguinar"
 local VALEERA_NAME_KEYWORD = "valeera"
@@ -172,7 +171,7 @@ local f = CreateFrame("Frame", "DelveInformantValeeraSanguinarFrame", UIParent, 
 f:SetSize(BAR_WIDTH, BAR_HEIGHT)
 f:SetFrameStrata("HIGH")
 f:SetMovable(true)
-f:EnableMouse(false)
+f:EnableMouse(true)
 f:RegisterForDrag("LeftButton")
 
 f:SetBackdrop({
@@ -192,7 +191,7 @@ bar:SetPoint("BOTTOMRIGHT", -4, 4)
 bar:SetMinMaxValues(0, 1)
 bar:SetValue(0)
 ApplyStatusbarTexture(bar)
-bar:SetStatusBarColor(BAR_R, BAR_G, BAR_B, BAR_A)
+bar:SetStatusBarColor(1, 0, 0, 1)
 
 if LSM and LSM.RegisterCallback then
   LSM.RegisterCallback(bar, "LibSharedMedia_Registered", function()
@@ -217,6 +216,28 @@ helperText:SetPoint("TOP", f, "BOTTOM", 0, -2)
 helperText:SetText("/vslock /vsunlock /vsmove")
 helperText:SetShown(false)
 
+local isHovered = false
+local lastEarned = 0
+local lastNeeded = 0
+local lastIsCapped = false
+
+local function UpdateValueText()
+  if lastIsCapped then
+    valueText:SetText("100%")
+    return
+  end
+
+  if isHovered then
+    valueText:SetText(string.format("%s/%s", FormatNumber(lastEarned), FormatNumber(lastNeeded)))
+  else
+    local pct = 0
+    if lastNeeded > 0 then
+      pct = (lastEarned / lastNeeded) * 100
+    end
+    valueText:SetText(string.format("%.0f%%", pct))
+  end
+end
+
 local function RestorePosition()
   EnsureDBDefaults()
   f:ClearAllPoints()
@@ -236,7 +257,6 @@ end
 
 local function SetLocked(locked)
   db.locked = locked and true or false
-  f:EnableMouse(not db.locked)
   helperText:SetShown(not db.locked)
 end
 
@@ -296,29 +316,41 @@ local function UpdateDisplay()
   local earned = companionInfo.currentXP
   local needed = companionInfo.totalXP
   local isCapped = needed <= 0
-  local percent = 100
+  local pct = 1
 
   if isCapped then
     bar:SetValue(1)
   else
-    local pct = earned / needed
+    pct = earned / needed
     if pct < 0 then pct = 0 end
     if pct > 1 then pct = 1 end
-    percent = pct * 100
     bar:SetValue(pct)
   end
 
+  local red = 1 - pct
+  local green = pct
+  bar:SetStatusBarColor(red, green, 0, 1)
+
+  lastEarned = earned
+  lastNeeded = needed
+  lastIsCapped = isCapped
+
   nameText:SetText(VALEERA_NAME)
   levelText:SetText(string.format("Level %d", level))
-
-  if isCapped then
-    valueText:SetText("Max")
-  else
-    valueText:SetText(string.format("%s/%s (%.0f%%)", FormatNumber(earned), FormatNumber(needed), percent))
-  end
+  UpdateValueText()
 
   f:Show()
 end
+
+f:SetScript("OnEnter", function()
+  isHovered = true
+  UpdateValueText()
+end)
+
+f:SetScript("OnLeave", function()
+  isHovered = false
+  UpdateValueText()
+end)
 
 SLASH_VALEERASANGUINARLOCK1 = "/vslock"
 SlashCmdList["VALEERASANGUINARLOCK"] = function()
