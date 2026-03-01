@@ -278,10 +278,12 @@ end
 local nameText = bar:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
 nameText:SetPoint("BOTTOMLEFT", bar, "TOPLEFT", 2, 2)
 nameText:SetJustifyH("LEFT")
+nameText:SetTextColor(BORDER_R, BORDER_G, BORDER_B, 1)
 
 local levelText = bar:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
 levelText:SetPoint("BOTTOMRIGHT", bar, "TOPRIGHT", -2, 2)
 levelText:SetJustifyH("RIGHT")
+levelText:SetTextColor(BORDER_R, BORDER_G, BORDER_B, 1)
 
 local valueText = bar:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
 valueText:SetPoint("CENTER", bar, "CENTER", 0, 0)
