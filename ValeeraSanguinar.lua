@@ -263,7 +263,10 @@ borderFrame:SetBackdrop({
   edgeSize = 16,
   insets = { left = 4, right = 4, top = 4, bottom = 4 },
 })
-borderFrame:SetBackdropBorderColor(BORDER_R, BORDER_G, BORDER_B, BORDER_A)
+do
+  local r, g, b = GetValeeraClassColor()
+  borderFrame:SetBackdropBorderColor(r, g, b, BORDER_A)
+end
 
 local bg = f:CreateTexture(nil, "BACKGROUND")
 bg:SetPoint("TOPLEFT", f, "TOPLEFT", 4, -4)
