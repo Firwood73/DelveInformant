@@ -55,6 +55,7 @@ local HIDE_IF_SCENARIO_STEP_NAMES = {
 local ONLY_IN_SCENARIO_INSTANCES = true
 local MIN_SUPPORTED_TOTAL = 1
 local MAX_SUPPORTED_TOTAL = 4
+local MIN_DELVE_LEVEL_TO_SHOW = 4
 
 local UPDATE_INTERVAL = 0.5
 local INSTANCE_LOAD_GRACE_SECONDS = 2.0
@@ -164,6 +165,40 @@ local function GetSpellDesc()
   local desc = C_Spell.GetSpellDescription(GetActiveSpellID())
   if not desc or desc == "" then return nil end
   return desc
+end
+
+local function GetCurrentDelveLevel()
+  if C_Delves then
+    if C_Delves.GetCurrentDelvesTier then
+      local level = tonumber(C_Delves.GetCurrentDelvesTier())
+      if level and level > 0 then
+        return level
+      end
+    end
+
+    if C_Delves.GetCurrentDelveLevel then
+      local level = tonumber(C_Delves.GetCurrentDelveLevel())
+      if level and level > 0 then
+        return level
+      end
+    end
+
+    if C_Delves.GetActiveDelveLevel then
+      local level = tonumber(C_Delves.GetActiveDelveLevel())
+      if level and level > 0 then
+        return level
+      end
+    end
+  end
+
+  if _G.GetActiveDelveLevel then
+    local level = tonumber(_G.GetActiveDelveLevel())
+    if level and level > 0 then
+      return level
+    end
+  end
+
+  return nil
 end
 
 local function ParseRemainingTotalFromSpellDesc()
@@ -745,6 +780,15 @@ local function ShouldShowNow(total)
   local hideNow, matched = ShouldHideForScenarioStep()
   if hideNow then
     return false, 'Scenario step matches hidden step "' .. tostring(matched) .. '"'
+  end
+
+  local delveLevel = GetCurrentDelveLevel()
+  if not delveLevel then
+    return false, "Delve level unavailable"
+  end
+
+  if delveLevel < MIN_DELVE_LEVEL_TO_SHOW then
+    return false, "Delve level is " .. tostring(delveLevel) .. " (minimum " .. tostring(MIN_DELVE_LEVEL_TO_SHOW) .. ")"
   end
 
   if total < MIN_SUPPORTED_TOTAL or total > MAX_SUPPORTED_TOTAL then
