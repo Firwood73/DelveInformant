@@ -267,7 +267,7 @@ bar:SetPoint("BOTTOMRIGHT", -4, 3)
 bar:SetMinMaxValues(0, 1)
 bar:SetValue(0)
 ApplyStatusbarTexture(bar)
-bar:SetStatusBarColor(1, 0, 0, 1)
+bar:SetStatusBarColor(0, 0, 0, 1)
 
 if LSM and LSM.RegisterCallback then
   LSM.RegisterCallback(bar, "LibSharedMedia_Registered", function()
@@ -411,9 +411,7 @@ local function UpdateDisplay()
     bar:SetValue(pct)
   end
 
-  local red = 1 - pct
-  local green = pct
-  bar:SetStatusBarColor(red, green, 0, 1)
+  bar:SetStatusBarColor(pct, 0, 0, 1)
 
   lastEarned = earned
   lastNeeded = needed
