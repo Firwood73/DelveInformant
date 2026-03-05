@@ -19,6 +19,7 @@ local BORDER_R, BORDER_G, BORDER_B, BORDER_A = 0.65, 0.05, 0.05, 0.9
 local VALEERA_NAME = "Valeera Sanguinar"
 local VALEERA_NAME_KEYWORD = "valeera"
 local VALEERA_FRIENDSHIP_ID = 2744
+local VALEERA_CLASS_FILE = "ROGUE"
 
 -- =========================
 -- LibSharedMedia (optional)
@@ -161,6 +162,15 @@ local function FormatNumber(n)
   return s
 end
 
+local function GetValeeraClassColor()
+  local classColorTable = CUSTOM_CLASS_COLORS or RAID_CLASS_COLORS
+  local classColor = classColorTable and classColorTable[VALEERA_CLASS_FILE]
+  if classColor then
+    return classColor.r, classColor.g, classColor.b
+  end
+  return BORDER_R, BORDER_G, BORDER_B
+end
+
 local function EnsureDBDefaults()
   if db.locked == nil then db.locked = true end
   if db.point == nil then db.point = BAR_POINT end
@@ -278,12 +288,18 @@ end
 local nameText = bar:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
 nameText:SetPoint("BOTTOMLEFT", bar, "TOPLEFT", 2, 2)
 nameText:SetJustifyH("LEFT")
-nameText:SetTextColor(BORDER_R, BORDER_G, BORDER_B, 1)
+do
+  local r, g, b = GetValeeraClassColor()
+  nameText:SetTextColor(r, g, b, 1)
+end
 
 local levelText = bar:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
 levelText:SetPoint("BOTTOMRIGHT", bar, "TOPRIGHT", -2, 2)
 levelText:SetJustifyH("RIGHT")
-levelText:SetTextColor(BORDER_R, BORDER_G, BORDER_B, 1)
+do
+  local r, g, b = GetValeeraClassColor()
+  levelText:SetTextColor(r, g, b, 1)
+end
 
 local valueText = bar:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
 valueText:SetPoint("CENTER", bar, "CENTER", 0, 0)
