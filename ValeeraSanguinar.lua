@@ -20,6 +20,11 @@ local VALEERA_NAME = "Valeera Sanguinar"
 local VALEERA_NAME_KEYWORD = "valeera"
 local VALEERA_FRIENDSHIP_ID = 2744
 local VALEERA_CLASS_FILE = "ROGUE"
+local SEASON_MAXLEVEL = {
+  [1] = 60,
+  [2] = 80,
+  [3] = 100,
+}
 
 -- =========================
 -- LibSharedMedia (optional)
@@ -52,6 +57,15 @@ local function GetCompanionFactionID()
     end
   end
   return VALEERA_FRIENDSHIP_ID
+end
+
+local function GetCurrentSeasonMaxLevel()
+  local currentSeason
+  if C_DelvesUI and C_DelvesUI.GetCurrentDelvesSeasonNumber then
+    currentSeason = tonumber(C_DelvesUI.GetCurrentDelvesSeasonNumber())
+  end
+
+  return SEASON_MAXLEVEL[currentSeason] or SEASON_MAXLEVEL[1]
 end
 
 local function IsValeeraFaction(factionName, factionID, targetFactionID)
@@ -440,7 +454,7 @@ local function UpdateDisplay()
   lastIsCapped = isCapped
 
   nameText:SetText(VALEERA_NAME)
-  levelText:SetText(string.format("Level %d of 60", level))
+  levelText:SetText(string.format("Level %d of %d", level, GetCurrentSeasonMaxLevel()))
   UpdateValueText()
 
   ShowFrameWithFadeIfNeeded()
