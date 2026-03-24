@@ -85,3 +85,88 @@ end
 
 _G.PrintFriendshipBar = PrintFriendshipBar
 _G.GetCurrentDelveGroup = GetCurrentDelveGroup
+
+local function CreateSegmentedBorder(parentFrame, options)
+  if not parentFrame then
+    return nil
+  end
+
+  options = options or {}
+
+  local borderSize = tonumber(options.borderSize) or 8
+  local borderAlpha = tonumber(options.alpha) or 1
+  local texturePath = options.texturePath or "Interface\\AddOns\\ChatChange\\Textures\\"
+  local frameLevelOffset = tonumber(options.frameLevelOffset) or 3
+  local drawLayer = options.drawLayer or "BORDER"
+
+  local borderFrame = CreateFrame("Frame", nil, parentFrame)
+  borderFrame:SetAllPoints(parentFrame)
+  borderFrame:SetFrameLevel(parentFrame:GetFrameLevel() + frameLevelOffset)
+  borderFrame:EnableMouse(false)
+
+  local borderPieces = {
+    TL = borderFrame:CreateTexture(nil, drawLayer),
+    T = borderFrame:CreateTexture(nil, drawLayer),
+    TR = borderFrame:CreateTexture(nil, drawLayer),
+    R = borderFrame:CreateTexture(nil, drawLayer),
+    BR = borderFrame:CreateTexture(nil, drawLayer),
+    B = borderFrame:CreateTexture(nil, drawLayer),
+    BL = borderFrame:CreateTexture(nil, drawLayer),
+    L = borderFrame:CreateTexture(nil, drawLayer),
+  }
+
+  borderPieces.TL:SetTexture(texturePath .. "TL.PNG")
+  borderPieces.TL:SetSize(borderSize, borderSize)
+  borderPieces.TL:SetPoint("TOPLEFT", borderFrame, "TOPLEFT", 0, 0)
+
+  borderPieces.TR:SetTexture(texturePath .. "TR.PNG")
+  borderPieces.TR:SetSize(borderSize, borderSize)
+  borderPieces.TR:SetPoint("TOPRIGHT", borderFrame, "TOPRIGHT", 0, 0)
+
+  borderPieces.BR:SetTexture(texturePath .. "BR.PNG")
+  borderPieces.BR:SetSize(borderSize, borderSize)
+  borderPieces.BR:SetPoint("BOTTOMRIGHT", borderFrame, "BOTTOMRIGHT", 0, 0)
+
+  borderPieces.BL:SetTexture(texturePath .. "BL.PNG")
+  borderPieces.BL:SetSize(borderSize, borderSize)
+  borderPieces.BL:SetPoint("BOTTOMLEFT", borderFrame, "BOTTOMLEFT", 0, 0)
+
+  borderPieces.T:SetTexture(texturePath .. "T.PNG")
+  borderPieces.T:SetPoint("TOPLEFT", borderPieces.TL, "TOPRIGHT", 0, 0)
+  borderPieces.T:SetPoint("TOPRIGHT", borderPieces.TR, "TOPLEFT", 0, 0)
+  borderPieces.T:SetHeight(borderSize)
+
+  borderPieces.R:SetTexture(texturePath .. "R.PNG")
+  borderPieces.R:SetPoint("TOPRIGHT", borderPieces.TR, "BOTTOMRIGHT", 0, 0)
+  borderPieces.R:SetPoint("BOTTOMRIGHT", borderPieces.BR, "TOPRIGHT", 0, 0)
+  borderPieces.R:SetWidth(borderSize)
+
+  borderPieces.B:SetTexture(texturePath .. "B.PNG")
+  borderPieces.B:SetPoint("BOTTOMLEFT", borderPieces.BL, "BOTTOMRIGHT", 0, 0)
+  borderPieces.B:SetPoint("BOTTOMRIGHT", borderPieces.BR, "BOTTOMLEFT", 0, 0)
+  borderPieces.B:SetHeight(borderSize)
+
+  borderPieces.L:SetTexture(texturePath .. "L.PNG")
+  borderPieces.L:SetPoint("TOPLEFT", borderPieces.TL, "BOTTOMLEFT", 0, 0)
+  borderPieces.L:SetPoint("BOTTOMLEFT", borderPieces.BL, "TOPLEFT", 0, 0)
+  borderPieces.L:SetWidth(borderSize)
+
+  local function SetColor(r, g, b, a)
+    local alpha = a
+    if alpha == nil then
+      alpha = borderAlpha
+    end
+
+    for _, piece in pairs(borderPieces) do
+      piece:SetVertexColor(r or 1, g or 1, b or 1, alpha)
+    end
+  end
+
+  return {
+    frame = borderFrame,
+    pieces = borderPieces,
+    SetColor = SetColor,
+  }
+end
+
+_G.CreateSegmentedBorder = CreateSegmentedBorder

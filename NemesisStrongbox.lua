@@ -460,20 +460,11 @@ tickLayer:SetFrameLevel(f:GetFrameLevel() + 2)
 tickLayer:EnableMouse(false)
 tickLayer:SetAlpha(1)
 
--- =========================
--- BORDER LAYER (edge only, above ticks)
--- =========================
-local border = CreateFrame("Frame", nil, f, "BackdropTemplate")
-border:SetAllPoints(true)
-border:SetFrameLevel(f:GetFrameLevel() + 3)
-border:EnableMouse(false)
-border:SetBackdrop({
-  edgeFile = "Interface/Tooltips/UI-Tooltip-Border",
-  tile     = true,
-  edgeSize = 16,
-  insets   = { left = 4, right = 4, top = 4, bottom = 4 },
+local border = _G.CreateSegmentedBorder and _G.CreateSegmentedBorder(f, {
+  borderSize = 8,
+  alpha = BORDER_A,
+  frameLevelOffset = 3,
 })
-border:SetBackdropBorderColor(BORDER_R, BORDER_G, BORDER_B, BORDER_A)
 
 -- =========================
 -- Text overlay layer (ensures message draws above statusbar)
@@ -506,7 +497,9 @@ local activeThemeGroup = nil
 
 local function SetTickAndBorderTheme(delveGroup)
   if delveGroup == "tww" then
-    border:SetBackdropBorderColor(TWW_THEME_R, TWW_THEME_G, TWW_THEME_B, BORDER_A)
+    if border and border.SetColor then
+      border.SetColor(TWW_THEME_R, TWW_THEME_G, TWW_THEME_B)
+    end
     for i = 1, #tickTextures do
       tickTextures[i]:SetVertexColor(TWW_THEME_R, TWW_THEME_G, TWW_THEME_B, BORDER_A)
     end
@@ -514,7 +507,9 @@ local function SetTickAndBorderTheme(delveGroup)
     return
   end
 
-  border:SetBackdropBorderColor(BORDER_R, BORDER_G, BORDER_B, BORDER_A)
+  if border and border.SetColor then
+    border.SetColor(BORDER_R, BORDER_G, BORDER_B)
+  end
   for i = 1, #tickTextures do
     tickTextures[i]:SetVertexColor(BORDER_R, BORDER_G, BORDER_B, BORDER_A)
   end
