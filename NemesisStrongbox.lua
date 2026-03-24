@@ -144,9 +144,12 @@ local function GetScenarioStepName()
 end
 
 local function InScenarioInstance()
-  local inInstance, instanceType = IsInInstance()
-  if not inInstance then return false end
-  return instanceType == "scenario"
+    local inInstance, instanceType = IsInInstance()
+    if instanceType and instanceType == "scenario"  then
+        return true
+    else
+        return false
+    end
 end
 
 local function GetActiveSpellID()
@@ -168,37 +171,16 @@ local function GetSpellDesc()
 end
 
 local function GetCurrentDelveLevel()
-  if C_Delves then
-    if C_Delves.GetCurrentDelvesTier then
-      local level = tonumber(C_Delves.GetCurrentDelvesTier())
-      if level and level > 0 then
-        return level
-      end
+    if not C_PartyInfo.IsDelveInProgress or not C_PartyInfo.IsDelveInProgress() then
+        return nil
     end
-
-    if C_Delves.GetCurrentDelveLevel then
-      local level = tonumber(C_Delves.GetCurrentDelveLevel())
-      if level and level > 0 then
-        return level
-      end
+    
+    local info = C_UIWidgetManager.GetScenarioHeaderDelvesWidgetVisualizationInfo(6183)
+    if info and info.tierText then
+        return tonumber(info.tierText)
     end
-
-    if C_Delves.GetActiveDelveLevel then
-      local level = tonumber(C_Delves.GetActiveDelveLevel())
-      if level and level > 0 then
-        return level
-      end
-    end
-  end
-
-  if _G.GetActiveDelveLevel then
-    local level = tonumber(_G.GetActiveDelveLevel())
-    if level and level > 0 then
-      return level
-    end
-  end
-
-  return nil
+    
+    return nil
 end
 
 local function ParseRemainingTotalFromSpellDesc()
