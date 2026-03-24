@@ -594,6 +594,21 @@ local function EnsureDBDefaults()
 
   db = DelveInformantDB.NemesisStrongbox
 
+  -- Backward compatibility: older builds stored point data at the top level
+  -- (db.point/db.relativePoint/db.x/db.y) instead of db.pos.*.
+  if type(db.pos) ~= "table" then
+    if db.point and db.relativePoint and db.x ~= nil and db.y ~= nil then
+      db.pos = {
+        point = db.point,
+        relativePoint = db.relativePoint,
+        x = db.x,
+        y = db.y,
+      }
+    else
+      db.pos = {}
+    end
+  end
+
   if db.locked == nil then
     db.locked = true
   end
