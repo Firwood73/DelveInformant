@@ -254,7 +254,8 @@ local function HideFrameWithFade()
   StartFadeTo(0, FADE_OUT_SECONDS, true)
 end
 
-local BORDER_SIZE = 16
+local BORDER_SIZE = 8
+local INSET_SIZE = 4
 local BORDER_TEXTURE_PATH = "Interface\\AddOns\\ChatChange\\Textures\\"
 
 local borderFrame = CreateFrame("Frame", nil, f)
@@ -273,38 +274,38 @@ local borderPieces = {
 }
 
 local function ApplyBorderLayout()
-  borderPieces.TL:SetTexture(BORDER_TEXTURE_PATH .. "TL")
+  borderPieces.TL:SetTexture(BORDER_TEXTURE_PATH .. "TL.PNG")
   borderPieces.TL:SetSize(BORDER_SIZE, BORDER_SIZE)
   borderPieces.TL:SetPoint("TOPLEFT", borderFrame, "TOPLEFT", 0, 0)
 
-  borderPieces.TR:SetTexture(BORDER_TEXTURE_PATH .. "TR")
+  borderPieces.TR:SetTexture(BORDER_TEXTURE_PATH .. "TR.PNG")
   borderPieces.TR:SetSize(BORDER_SIZE, BORDER_SIZE)
   borderPieces.TR:SetPoint("TOPRIGHT", borderFrame, "TOPRIGHT", 0, 0)
 
-  borderPieces.BR:SetTexture(BORDER_TEXTURE_PATH .. "BR")
+  borderPieces.BR:SetTexture(BORDER_TEXTURE_PATH .. "BR.PNG")
   borderPieces.BR:SetSize(BORDER_SIZE, BORDER_SIZE)
   borderPieces.BR:SetPoint("BOTTOMRIGHT", borderFrame, "BOTTOMRIGHT", 0, 0)
 
-  borderPieces.BL:SetTexture(BORDER_TEXTURE_PATH .. "BL")
+  borderPieces.BL:SetTexture(BORDER_TEXTURE_PATH .. "BL.PNG")
   borderPieces.BL:SetSize(BORDER_SIZE, BORDER_SIZE)
   borderPieces.BL:SetPoint("BOTTOMLEFT", borderFrame, "BOTTOMLEFT", 0, 0)
 
-  borderPieces.T:SetTexture(BORDER_TEXTURE_PATH .. "T")
+  borderPieces.T:SetTexture(BORDER_TEXTURE_PATH .. "T.PNG")
   borderPieces.T:SetPoint("TOPLEFT", borderPieces.TL, "TOPRIGHT", 0, 0)
   borderPieces.T:SetPoint("TOPRIGHT", borderPieces.TR, "TOPLEFT", 0, 0)
   borderPieces.T:SetHeight(BORDER_SIZE)
 
-  borderPieces.R:SetTexture(BORDER_TEXTURE_PATH .. "R")
+  borderPieces.R:SetTexture(BORDER_TEXTURE_PATH .. "R.PNG")
   borderPieces.R:SetPoint("TOPRIGHT", borderPieces.TR, "BOTTOMRIGHT", 0, 0)
   borderPieces.R:SetPoint("BOTTOMRIGHT", borderPieces.BR, "TOPRIGHT", 0, 0)
   borderPieces.R:SetWidth(BORDER_SIZE)
 
-  borderPieces.B:SetTexture(BORDER_TEXTURE_PATH .. "B")
+  borderPieces.B:SetTexture(BORDER_TEXTURE_PATH .. "B.PNG")
   borderPieces.B:SetPoint("BOTTOMLEFT", borderPieces.BL, "BOTTOMRIGHT", 0, 0)
   borderPieces.B:SetPoint("BOTTOMRIGHT", borderPieces.BR, "BOTTOMLEFT", 0, 0)
   borderPieces.B:SetHeight(BORDER_SIZE)
 
-  borderPieces.L:SetTexture(BORDER_TEXTURE_PATH .. "L")
+  borderPieces.L:SetTexture(BORDER_TEXTURE_PATH .. "L.PNG")
   borderPieces.L:SetPoint("TOPLEFT", borderPieces.TL, "BOTTOMLEFT", 0, 0)
   borderPieces.L:SetPoint("BOTTOMLEFT", borderPieces.BL, "TOPLEFT", 0, 0)
   borderPieces.L:SetWidth(BORDER_SIZE)
@@ -321,14 +322,14 @@ ApplyBorderLayout()
 ApplyBorderColor()
 
 local bg = f:CreateTexture(nil, "BACKGROUND")
-bg:SetPoint("TOPLEFT", f, "TOPLEFT", 4, -4)
-bg:SetPoint("BOTTOMRIGHT", f, "BOTTOMRIGHT", -4, 3)
+bg:SetPoint("TOPLEFT", f, "TOPLEFT", INSET_SIZE, -INSET_SIZE)
+bg:SetPoint("BOTTOMRIGHT", f, "BOTTOMRIGHT", -INSET_SIZE, INSET_SIZE - 1)
 bg:SetColorTexture(BG_R, BG_G, BG_B, BG_A)
 
 local bar = CreateFrame("StatusBar", nil, f)
 bar:SetFrameLevel(f:GetFrameLevel() + 2)
-bar:SetPoint("TOPLEFT", 4, -4)
-bar:SetPoint("BOTTOMRIGHT", -4, 3)
+bar:SetPoint("TOPLEFT", INSET_SIZE, -INSET_SIZE)
+bar:SetPoint("BOTTOMRIGHT", -INSET_SIZE, INSET_SIZE - 1)
 bar:SetMinMaxValues(0, 1)
 bar:SetValue(0)
 ApplyStatusbarTexture(bar)
