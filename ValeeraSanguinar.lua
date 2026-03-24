@@ -254,19 +254,71 @@ local function HideFrameWithFade()
   StartFadeTo(0, FADE_OUT_SECONDS, true)
 end
 
-local borderFrame = CreateFrame("Frame", nil, f, "BackdropTemplate")
+local BORDER_SIZE = 16
+local BORDER_TEXTURE_PATH = "Interface\\AddOns\\ChatChange\\Textures\\"
+
+local borderFrame = CreateFrame("Frame", nil, f)
 borderFrame:SetAllPoints(f)
 borderFrame:SetFrameLevel(f:GetFrameLevel() + 3)
-borderFrame:SetBackdrop({
-  edgeFile = "Interface\\AddOns\\ChatChange\\Textures\\UI-Tooltip-Border",
-  tile = true,
-  edgeSize = 16,
-  insets = { left = 4, right = 4, top = 4, bottom = 4 },
-})
-do
-  local r, g, b = GetValeeraClassColor()
-  borderFrame:SetBackdropBorderColor(r, g, b, BORDER_A)
+
+local borderPieces = {
+  TL = borderFrame:CreateTexture(nil, "BORDER"),
+  T = borderFrame:CreateTexture(nil, "BORDER"),
+  TR = borderFrame:CreateTexture(nil, "BORDER"),
+  R = borderFrame:CreateTexture(nil, "BORDER"),
+  BR = borderFrame:CreateTexture(nil, "BORDER"),
+  B = borderFrame:CreateTexture(nil, "BORDER"),
+  BL = borderFrame:CreateTexture(nil, "BORDER"),
+  L = borderFrame:CreateTexture(nil, "BORDER"),
+}
+
+local function ApplyBorderLayout()
+  borderPieces.TL:SetTexture(BORDER_TEXTURE_PATH .. "TL")
+  borderPieces.TL:SetSize(BORDER_SIZE, BORDER_SIZE)
+  borderPieces.TL:SetPoint("TOPLEFT", borderFrame, "TOPLEFT", 0, 0)
+
+  borderPieces.TR:SetTexture(BORDER_TEXTURE_PATH .. "TR")
+  borderPieces.TR:SetSize(BORDER_SIZE, BORDER_SIZE)
+  borderPieces.TR:SetPoint("TOPRIGHT", borderFrame, "TOPRIGHT", 0, 0)
+
+  borderPieces.BR:SetTexture(BORDER_TEXTURE_PATH .. "BR")
+  borderPieces.BR:SetSize(BORDER_SIZE, BORDER_SIZE)
+  borderPieces.BR:SetPoint("BOTTOMRIGHT", borderFrame, "BOTTOMRIGHT", 0, 0)
+
+  borderPieces.BL:SetTexture(BORDER_TEXTURE_PATH .. "BL")
+  borderPieces.BL:SetSize(BORDER_SIZE, BORDER_SIZE)
+  borderPieces.BL:SetPoint("BOTTOMLEFT", borderFrame, "BOTTOMLEFT", 0, 0)
+
+  borderPieces.T:SetTexture(BORDER_TEXTURE_PATH .. "T")
+  borderPieces.T:SetPoint("TOPLEFT", borderPieces.TL, "TOPRIGHT", 0, 0)
+  borderPieces.T:SetPoint("TOPRIGHT", borderPieces.TR, "TOPLEFT", 0, 0)
+  borderPieces.T:SetHeight(BORDER_SIZE)
+
+  borderPieces.R:SetTexture(BORDER_TEXTURE_PATH .. "R")
+  borderPieces.R:SetPoint("TOPRIGHT", borderPieces.TR, "BOTTOMRIGHT", 0, 0)
+  borderPieces.R:SetPoint("BOTTOMRIGHT", borderPieces.BR, "TOPRIGHT", 0, 0)
+  borderPieces.R:SetWidth(BORDER_SIZE)
+
+  borderPieces.B:SetTexture(BORDER_TEXTURE_PATH .. "B")
+  borderPieces.B:SetPoint("BOTTOMLEFT", borderPieces.BL, "BOTTOMRIGHT", 0, 0)
+  borderPieces.B:SetPoint("BOTTOMRIGHT", borderPieces.BR, "BOTTOMLEFT", 0, 0)
+  borderPieces.B:SetHeight(BORDER_SIZE)
+
+  borderPieces.L:SetTexture(BORDER_TEXTURE_PATH .. "L")
+  borderPieces.L:SetPoint("TOPLEFT", borderPieces.TL, "BOTTOMLEFT", 0, 0)
+  borderPieces.L:SetPoint("BOTTOMLEFT", borderPieces.BL, "TOPLEFT", 0, 0)
+  borderPieces.L:SetWidth(BORDER_SIZE)
 end
+
+local function ApplyBorderColor()
+  local r, g, b = GetValeeraClassColor()
+  for _, piece in pairs(borderPieces) do
+    piece:SetVertexColor(r, g, b, BORDER_A)
+  end
+end
+
+ApplyBorderLayout()
+ApplyBorderColor()
 
 local bg = f:CreateTexture(nil, "BACKGROUND")
 bg:SetPoint("TOPLEFT", f, "TOPLEFT", 4, -4)
