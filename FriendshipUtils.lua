@@ -83,8 +83,25 @@ local function GetCurrentDelveGroup()
   return nil
 end
 
+local SEASON_MAXLEVEL = {
+  [1] = { 60, "Nullaeus Allies" },
+  [2] = { 80, "Nullaeus Allies" },
+  [3] = { 100, "Nullaeus Allies" },
+}
+
+local function GetCurrentSeasonMaxLevel()
+  local currentSeason
+  if C_DelvesUI and C_DelvesUI.GetCurrentDelvesSeasonNumber then
+    currentSeason = tonumber(C_DelvesUI.GetCurrentDelvesSeasonNumber())
+  end
+
+  local seasonData = SEASON_MAXLEVEL[currentSeason] or SEASON_MAXLEVEL[1]
+  return seasonData[1] or 0
+end
+
 _G.PrintFriendshipBar = PrintFriendshipBar
 _G.GetCurrentDelveGroup = GetCurrentDelveGroup
+_G.GetCurrentSeasonMaxLevel = GetCurrentSeasonMaxLevel
 
 local function CreateSegmentedBorder(parentFrame, options)
   if not parentFrame then
