@@ -20,11 +20,6 @@ local VALEERA_NAME = "Valeera Sanguinar"
 local VALEERA_NAME_KEYWORD = "valeera"
 local VALEERA_FRIENDSHIP_ID = 2744
 local VALEERA_CLASS_FILE = "ROGUE"
-local SEASON_MAXLEVEL = {
-  [1] = { 60, "Nullaeus Allies" },
-  [2] = { 80, "Nullaeus Allies" },
-  [3] = { 100, "Nullaeus Allies" },
-}
 
 -- =========================
 -- LibSharedMedia (optional)
@@ -60,13 +55,10 @@ local function GetCompanionFactionID()
 end
 
 local function GetCurrentSeasonMaxLevel()
-  local currentSeason
-  if C_DelvesUI and C_DelvesUI.GetCurrentDelvesSeasonNumber then
-    currentSeason = tonumber(C_DelvesUI.GetCurrentDelvesSeasonNumber())
+  if _G.GetCurrentSeasonMaxLevel then
+    return _G.GetCurrentSeasonMaxLevel()
   end
-
-  local seasonData = SEASON_MAXLEVEL[currentSeason] or SEASON_MAXLEVEL[1]
-  return seasonData[1] or 0
+  return 0
 end
 
 local function IsValeeraFaction(factionName, factionID, targetFactionID)

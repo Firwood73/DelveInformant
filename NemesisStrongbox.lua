@@ -42,11 +42,6 @@ local DEFAULT_SPELL_ID = 1239535
 
 local TWW_DELVE_SPELL_ID = 1239535
 local MIDNIGHT_DELVE_SPELL_ID = 1270179
-local SEASON_MAXLEVEL = {
-  [1] = { 60, "Nullaeus Allies" },
-  [2] = { 80, "Nullaeus Allies" },
-  [3] = { 100, "Nullaeus Allies" },
-}
 
 -- TWW delve theme HEX: 9a693b
 local TWW_THEME_R, TWW_THEME_G, TWW_THEME_B = 0.6039, 0.4118, 0.2314
@@ -132,13 +127,10 @@ local function Clamp(v, lo, hi)
 end
 
 local function GetCurrentSeasonMaxLevel()
-  local currentSeason
-  if C_DelvesUI and C_DelvesUI.GetCurrentDelvesSeasonNumber then
-    currentSeason = tonumber(C_DelvesUI.GetCurrentDelvesSeasonNumber())
+  if _G.GetCurrentSeasonMaxLevel then
+    return _G.GetCurrentSeasonMaxLevel()
   end
-
-  local seasonData = SEASON_MAXLEVEL[currentSeason] or SEASON_MAXLEVEL[1]
-  return seasonData[1] or 0
+  return 0
 end
 
 local function NormalizeScenarioText(s)
