@@ -84,19 +84,23 @@ local function GetCurrentDelveGroup()
 end
 
 local SEASON_MAXLEVEL = {
-  [1] = { 60, "Nullaeus Allies" },
-  [2] = { 80, "Nullaeus Allies" },
-  [3] = { 100, "Nullaeus Allies" },
+  [1] = { Lvl = 60, Title = "Nullaeus Allies" },
+  [2] = { Lvl = 80, Title = "Nullaeus Allies" },
+  [3] = { Lvl = 100, Title = "Nullaeus Allies" },
 }
 
-local function GetCurrentSeasonMaxLevel()
+local function GetCurrentSeasonMaxLevel(parse)
   local currentSeason
   if C_DelvesUI and C_DelvesUI.GetCurrentDelvesSeasonNumber then
     currentSeason = tonumber(C_DelvesUI.GetCurrentDelvesSeasonNumber())
   end
 
   local seasonData = SEASON_MAXLEVEL[currentSeason] or SEASON_MAXLEVEL[1]
-  return seasonData[1] or 0
+  if parse == "Lvl" then
+    return seasonData.Lvl
+  else
+    return seasonData.Title
+  end
 end
 
 _G.PrintFriendshipBar = PrintFriendshipBar

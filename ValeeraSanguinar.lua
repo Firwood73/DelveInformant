@@ -5,6 +5,7 @@ DelveInformantDB = DelveInformantDB or {}
 DelveInformantDB.ValeeraSanguinar = DelveInformantDB.ValeeraSanguinar or {}
 
 local db = DelveInformantDB.ValeeraSanguinar
+local Crayon = LibStub("LibCrayon-3.0")
 
 local UPDATE_INTERVAL = 0.25
 local FADE_IN_SECONDS = 1.0
@@ -56,7 +57,7 @@ end
 
 local function GetCurrentSeasonMaxLevel()
   if _G.GetCurrentSeasonMaxLevel then
-    return _G.GetCurrentSeasonMaxLevel()
+    return _G.GetCurrentSeasonMaxLevel("Lvl")
   end
   return 0
 end
@@ -446,8 +447,9 @@ local function UpdateDisplay()
   lastNeeded = needed
   lastIsCapped = isCapped
 
+  local currentMaxLevel = tonumber(GetCurrentSeasonMaxLevel())
   nameText:SetText(VALEERA_NAME)
-  levelText:SetText(string.format("Level %d of %d", level, GetCurrentSeasonMaxLevel()))
+  levelText:SetText(string.format("Level %d of %s", level, Crayon:Green(currentMaxLevel)))
   UpdateValueText()
 
   ShowFrameWithFadeIfNeeded()

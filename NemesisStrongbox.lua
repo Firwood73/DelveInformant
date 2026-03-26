@@ -128,7 +128,7 @@ end
 
 local function GetCurrentSeasonMaxLevel()
   if _G.GetCurrentSeasonMaxLevel then
-    return _G.GetCurrentSeasonMaxLevel()
+    return _G.GetCurrentSeasonMaxLevel("Title")
   end
   return 0
 end
@@ -577,7 +577,7 @@ do
   titleText:SetPoint("BOTTOM", f, "TOP", x, y)
 end
 titleText:SetJustifyH("CENTER")
-titleText:SetText(string.format("Nemesis Strongbox (Max %d)", GetCurrentSeasonMaxLevel()))
+titleText:SetText(GetCurrentSeasonMaxLevel())
 titleText:SetTextColor(BORDER_R, BORDER_G, BORDER_B, 1)
 
 local msg = textLayer:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
@@ -722,7 +722,7 @@ end
 
 local function SetFoundAllVisualState(isFoundAll)
   if isFoundAll then
-    msg:SetText("You've found all Strongboxes!")
+    msg:SetText("You've upgraded all Strongboxes!")
     StartTicksFadeTo(0, TICKS_FADE_SECONDS)
     StartMsgFadeTo(1, MSG_FADE_SECONDS)
   else
