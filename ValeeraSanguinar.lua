@@ -291,7 +291,7 @@ bar:SetPoint("BOTTOMRIGHT", -INSET_SIZE, INSET_SIZE - 1)
 bar:SetMinMaxValues(0, 1)
 bar:SetValue(0)
 ApplyStatusbarTexture(bar)
-bar:SetStatusBarColor(0, 0, 0, 1)
+bar:SetStatusBarColor(0.35, 0, 0, 1)
 
 local textLayer = CreateFrame("Frame", nil, f)
 textLayer:SetAllPoints(true)
@@ -446,7 +446,8 @@ local function UpdateDisplay()
     bar:SetValue(pct)
   end
 
-  bar:SetStatusBarColor(pct, 0, 0, 1)
+  local minRed = 0.35
+  bar:SetStatusBarColor(minRed + ((1 - minRed) * pct), 0, 0, 1)
 
   lastEarned = earned
   lastNeeded = needed
