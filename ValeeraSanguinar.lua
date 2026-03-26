@@ -189,7 +189,7 @@ end
 
 local f = CreateFrame("Frame", "DelveInformantValeeraSanguinarFrame", UIParent)
 f:SetSize(BAR_WIDTH, BAR_HEIGHT)
-f:SetFrameStrata("HIGH")
+f:SetFrameStrata("MEDIUM")
 f:SetAlpha(0)
 f:Hide()
 f:SetMovable(true)
