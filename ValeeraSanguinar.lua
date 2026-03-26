@@ -6,6 +6,7 @@ DelveInformantDB.ValeeraSanguinar = DelveInformantDB.ValeeraSanguinar or {}
 
 local db = DelveInformantDB.ValeeraSanguinar
 local Crayon = LibStub("LibCrayon-3.0")
+local DIUtils = _G.DelveInformantUtils or {}
 
 local UPDATE_INTERVAL = 0.25
 local FADE_IN_SECONDS = 1.0
@@ -29,7 +30,7 @@ local LSM = LibStub and LibStub("LibSharedMedia-3.0", true)
 local LSM_STATUSBAR = (LSM and LSM.MediaType and LSM.MediaType.STATUSBAR) or "statusbar"
 local LSM_TEXTURE_NAME = "Flat"
 
-local function FetchStatusbarTexture()
+local FetchStatusbarTexture = DIUtils.FetchStatusbarTexture or function()
   if LSM and LSM.Fetch then
     local tex = LSM:Fetch(LSM_STATUSBAR, LSM_TEXTURE_NAME, true)
     if tex and tex ~= "" then
@@ -140,21 +141,20 @@ local function GetFriendshipCompanionInfo(friendshipFactionID)
   }
 end
 
-local function Round(x)
-  if x >= 0 then
-    return math.floor(x + 0.5)
-  end
-  return math.ceil(x - 0.5)
-end
-
-local function Snap(frame, value)
+local Snap = DIUtils.Snap or function(frame, value)
   local scale = (frame and frame.GetEffectiveScale and frame:GetEffectiveScale())
     or (UIParent and UIParent:GetEffectiveScale())
     or 1
-  return Round(value * scale) / scale
+  local rounded = (value or 0) * scale
+  if rounded >= 0 then
+    rounded = math.floor(rounded + 0.5)
+  else
+    rounded = math.ceil(rounded - 0.5)
+  end
+  return rounded / scale
 end
 
-local function SnapPoint(frame, x, y)
+local SnapPoint = DIUtils.SnapPoint or function(frame, x, y)
   return Snap(frame, x or 0), Snap(frame, y or 0)
 end
 
@@ -200,7 +200,7 @@ local fadeActive, fadeElapsed, fadeDuration = false, 0, 0
 local fadeFrom, fadeTo = 0, 0
 local fadeHideOnDone = false
 
-local function Clamp(v, lo, hi)
+local Clamp = DIUtils.Clamp or function(v, lo, hi)
   if v < lo then return lo end
   if v > hi then return hi end
   return v
@@ -387,6 +387,10 @@ end)
 local function GetCompanionInfo()
   local companionFactionID = GetCompanionFactionID()
 
+  -- Preferred source order:
+  -- 1) Friendship APIs (most accurate while gossip/friendship data is available)
+  -- 2) Delves APIs (direct companion level/xp when exposed)
+  -- 3) Faction list scan fallback (legacy-safe path)
   local friendshipInfo = GetFriendshipCompanionInfo(companionFactionID)
     or GetFriendshipCompanionInfo(VALEERA_FRIENDSHIP_ID)
   if friendshipInfo then

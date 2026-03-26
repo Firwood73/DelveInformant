@@ -107,6 +107,51 @@ _G.PrintFriendshipBar = PrintFriendshipBar
 _G.GetCurrentDelveGroup = GetCurrentDelveGroup
 _G.GetCurrentSeasonMaxLevel = GetCurrentSeasonMaxLevel
 
+-- Shared utility helpers for DelveInformant modules.
+-- Keeping these in one place avoids duplicated helper logic in each feature file.
+local DelveInformantUtils = _G.DelveInformantUtils or {}
+
+function DelveInformantUtils.Clamp(value, minValue, maxValue)
+  if value < minValue then return minValue end
+  if value > maxValue then return maxValue end
+  return value
+end
+
+function DelveInformantUtils.Round(value)
+  if value >= 0 then
+    return math.floor(value + 0.5)
+  end
+  return math.ceil(value - 0.5)
+end
+
+function DelveInformantUtils.Snap(frame, value)
+  local scale = (frame and frame.GetEffectiveScale and frame:GetEffectiveScale())
+    or (UIParent and UIParent:GetEffectiveScale())
+    or 1
+  return DelveInformantUtils.Round((value or 0) * scale) / scale
+end
+
+function DelveInformantUtils.SnapPoint(frame, x, y)
+  return DelveInformantUtils.Snap(frame, x or 0), DelveInformantUtils.Snap(frame, y or 0)
+end
+
+function DelveInformantUtils.FetchStatusbarTexture(mediaName)
+  local lsm = LibStub and LibStub("LibSharedMedia-3.0", true)
+  local statusbarMediaType = (lsm and lsm.MediaType and lsm.MediaType.STATUSBAR) or "statusbar"
+  local textureName = mediaName or "Flat"
+
+  if lsm and lsm.Fetch then
+    local texture = lsm:Fetch(statusbarMediaType, textureName, true)
+    if texture and texture ~= "" then
+      return texture
+    end
+  end
+
+  return "Interface\\TARGETINGFRAME\\UI-StatusBar"
+end
+
+_G.DelveInformantUtils = DelveInformantUtils
+
 local function CreateSegmentedBorder(parentFrame, options)
   if not parentFrame then
     return nil

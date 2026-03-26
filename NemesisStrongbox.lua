@@ -17,6 +17,7 @@ DelveInformantDB = DelveInformantDB or {}
 DelveInformantDB.NemesisStrongbox = DelveInformantDB.NemesisStrongbox or {}
 
 local db = DelveInformantDB.NemesisStrongbox
+local DIUtils = _G.DelveInformantUtils or {}
 
 -- =========================
 -- LibSharedMedia (optional)
@@ -25,7 +26,7 @@ local LSM = LibStub and LibStub("LibSharedMedia-3.0", true)
 local LSM_STATUSBAR = (LSM and LSM.MediaType and LSM.MediaType.STATUSBAR) or "statusbar"
 local LSM_TEXTURE_NAME = "Flat"
 
-local function FetchStatusbarTexture()
+local FetchStatusbarTexture = DIUtils.FetchStatusbarTexture or function()
   if LSM and LSM.Fetch then
     local tex = LSM:Fetch(LSM_STATUSBAR, LSM_TEXTURE_NAME, true)
     if tex and tex ~= "" then
@@ -89,22 +90,20 @@ local DEBUG_HIDE_REASONS = true
 -- =========================
 -- Pixel perfect helpers
 -- =========================
-local function Round(x)
-  if x >= 0 then
-    return math.floor(x + 0.5)
-  else
-    return math.ceil(x - 0.5)
-  end
-end
-
-local function Snap(frame, value)
+local Snap = DIUtils.Snap or function(frame, value)
   local scale = (frame and frame.GetEffectiveScale and frame:GetEffectiveScale())
-              or (UIParent and UIParent:GetEffectiveScale())
-              or 1
-  return Round(value * scale) / scale
+    or (UIParent and UIParent:GetEffectiveScale())
+    or 1
+  local rounded = value and (value * scale) or 0
+  if rounded >= 0 then
+    rounded = math.floor(rounded + 0.5)
+  else
+    rounded = math.ceil(rounded - 0.5)
+  end
+  return rounded / scale
 end
 
-local function SnapPoint(frame, x, y)
+local SnapPoint = DIUtils.SnapPoint or function(frame, x, y)
   return Snap(frame, x or 0), Snap(frame, y or 0)
 end
 
@@ -120,7 +119,7 @@ local function NS_Print(msg)
   DEFAULT_CHAT_FRAME:AddMessage("|cFF69CCF0DelveInformant|r: " .. tostring(msg))
 end
 
-local function Clamp(v, lo, hi)
+local Clamp = DIUtils.Clamp or function(v, lo, hi)
   if v < lo then return lo end
   if v > hi then return hi end
   return v
@@ -151,12 +150,8 @@ local function GetScenarioStepName()
 end
 
 local function InScenarioInstance()
-    local inInstance, instanceType = IsInInstance()
-    if instanceType and instanceType == "scenario"  then
-        return true
-    else
-        return false
-    end
+  local _, instanceType = IsInInstance()
+  return instanceType == "scenario"
 end
 
 local function GetActiveSpellID()
@@ -834,6 +829,9 @@ local function UpdateDisplay()
   LogScenarioStepNameIfChanged(false)
   SetTickAndBorderThemeForCurrentState()
 
+  -- Parse directly from the active delve spell tooltip text.
+  -- We keep the most recent valid reading cached so the UI can remain stable
+  -- through brief API/transient loading gaps.
   local dataFresh = false
   local remaining, total, rawWasZeroZero = ParseRemainingTotalFromSpellDesc()
 
