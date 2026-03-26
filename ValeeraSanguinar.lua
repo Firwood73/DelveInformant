@@ -285,7 +285,7 @@ bg:SetPoint("BOTTOMRIGHT", f, "BOTTOMRIGHT", -INSET_SIZE, INSET_SIZE - 1)
 bg:SetColorTexture(BG_R, BG_G, BG_B, BG_A)
 
 local bar = CreateFrame("StatusBar", nil, f)
-bar:SetFrameLevel(f:GetFrameLevel() + 2)
+bar:SetFrameLevel(f:GetFrameLevel() + 1)
 bar:SetPoint("TOPLEFT", INSET_SIZE, -INSET_SIZE)
 bar:SetPoint("BOTTOMRIGHT", -INSET_SIZE, INSET_SIZE - 1)
 bar:SetMinMaxValues(0, 1)
@@ -293,13 +293,18 @@ bar:SetValue(0)
 ApplyStatusbarTexture(bar)
 bar:SetStatusBarColor(0, 0, 0, 1)
 
+local textLayer = CreateFrame("Frame", nil, f)
+textLayer:SetAllPoints(true)
+textLayer:SetFrameLevel(f:GetFrameLevel() + 10)
+textLayer:EnableMouse(false)
+
 if LSM and LSM.RegisterCallback then
   LSM.RegisterCallback(bar, "LibSharedMedia_Registered", function()
     ApplyStatusbarTexture(bar)
   end)
 end
 
-local nameText = bar:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
+local nameText = textLayer:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
 nameText:SetPoint("BOTTOMLEFT", bar, "TOPLEFT", 2, 2)
 nameText:SetJustifyH("LEFT")
 do
@@ -307,7 +312,7 @@ do
   nameText:SetTextColor(r, g, b, 1)
 end
 
-local levelText = bar:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
+local levelText = textLayer:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
 levelText:SetPoint("BOTTOMRIGHT", bar, "TOPRIGHT", -2, 2)
 levelText:SetJustifyH("RIGHT")
 do
@@ -315,7 +320,7 @@ do
   levelText:SetTextColor(r, g, b, 1)
 end
 
-local valueText = bar:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
+local valueText = textLayer:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
 valueText:SetPoint("CENTER", bar, "CENTER", 0, 0)
 valueText:SetJustifyH("CENTER")
 
