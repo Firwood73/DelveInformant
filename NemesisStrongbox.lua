@@ -672,12 +672,15 @@ local function SetLocked(isLocked)
 end
 
 -- =========================
--- Coloring (based on FOUND count)
+-- Coloring (based on absolute FOUND count)
+-- 1-2 = green, 3 = blue, 4+ = purple
 -- =========================
 local function SetBarColorForFound(found, total)
-  if total > 0 and found >= total then
+  found = tonumber(found) or 0
+
+  if found >= 4 then
     bar:SetStatusBarColor(0.6392, 0.2078, 0.9333, 1) -- purple
-  elseif found >= math.max(1, total - 1) then
+  elseif found >= 3 then
     bar:SetStatusBarColor(0.0, 0.4392, 0.8666, 1)    -- blue
   else
     bar:SetStatusBarColor(0.1176, 1.0, 0.0, 1)       -- green (0-2)
