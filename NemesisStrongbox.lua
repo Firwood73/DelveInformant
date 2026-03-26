@@ -725,7 +725,7 @@ end
 
 local function SetFoundAllVisualState(isFoundAll)
   if isFoundAll then
-    msg:SetText("You've upgraded all Strongboxes!")
+    msg:SetText("You've fully upgraded the Strongbox!")
     StartTicksFadeTo(0, TICKS_FADE_SECONDS)
     StartMsgFadeTo(1, MSG_FADE_SECONDS)
   else
