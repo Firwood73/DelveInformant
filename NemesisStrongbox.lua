@@ -574,7 +574,7 @@ PositionAllTicks(MAX_SUPPORTED_TOTAL)
 titleText = f:CreateFontString(nil, "OVERLAY", "GameFontNormal")
 do
   local x, y = SnapPoint(f, 0, 2)
-  titleText:SetPoint("BOTTOM", f, "TOP", x, y)
+  titleText:SetPoint("BOTTOM", bar, "TOP", x, y)
 end
 titleText:SetJustifyH("CENTER")
 titleText:SetText(GetCurrentSeasonMaxLevel())
