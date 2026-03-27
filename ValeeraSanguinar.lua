@@ -63,6 +63,10 @@ local function GetCurrentSeasonMaxLevel()
   return 0
 end
 
+local function IsPlayerInCombat()
+  return UnitAffectingCombat and UnitAffectingCombat("player")
+end
+
 local function IsValeeraFaction(factionName, factionID, targetFactionID)
   if targetFactionID and factionID and tonumber(factionID) == targetFactionID then
     return true
@@ -423,6 +427,11 @@ local function GetCompanionInfo()
 end
 
 local function UpdateDisplay()
+  if IsPlayerInCombat() then
+    HideFrameWithFade()
+    return
+  end
+
   local delveGroup = _G.GetCurrentDelveGroup and _G.GetCurrentDelveGroup()
   if delveGroup ~= "midnight" then
     HideFrameWithFade()
@@ -500,6 +509,8 @@ evt:RegisterEvent("CHAT_MSG_COMBAT_FACTION_CHANGE")
 evt:RegisterEvent("UPDATE_FACTION")
 evt:RegisterEvent("PLAYER_LEVEL_UP")
 evt:RegisterEvent("ZONE_CHANGED_NEW_AREA")
+evt:RegisterEvent("PLAYER_REGEN_DISABLED")
+evt:RegisterEvent("PLAYER_REGEN_ENABLED")
 evt:SetScript("OnEvent", function()
   UpdateDisplay()
 end)
