@@ -154,6 +154,10 @@ local function InScenarioInstance()
   return instanceType == "scenario"
 end
 
+local function IsPlayerInCombat()
+  return UnitAffectingCombat and UnitAffectingCombat("player")
+end
+
 local function GetActiveSpellID()
   local delveGroup = _G.GetCurrentDelveGroup and _G.GetCurrentDelveGroup()
   if delveGroup == "tww" then
@@ -770,6 +774,10 @@ end
 -- Show/hide rules
 -- =========================
 local function ShouldShowNow(total)
+  if IsPlayerInCombat() then
+    return false, "Player is in combat"
+  end
+
   if ONLY_IN_SCENARIO_INSTANCES and not InScenarioInstance() then
     return false, "Not in scenario instance (instanceType != scenario)"
   end
@@ -979,6 +987,7 @@ evt:RegisterEvent("PLAYER_ENTERING_WORLD")
 evt:RegisterEvent("ZONE_CHANGED_NEW_AREA")
 evt:RegisterEvent("SCENARIO_UPDATE")
 evt:RegisterEvent("SPELL_TEXT_UPDATE")
+evt:RegisterEvent("PLAYER_REGEN_DISABLED")
 evt:RegisterEvent("PLAYER_REGEN_ENABLED")
 evt:SetScript("OnEvent", function(_, event)
   if event == "PLAYER_ENTERING_WORLD" or event == "ZONE_CHANGED_NEW_AREA" then
