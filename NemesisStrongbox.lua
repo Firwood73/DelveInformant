@@ -119,6 +119,26 @@ local function NS_Print(msg)
   DEFAULT_CHAT_FRAME:AddMessage("|cFF69CCF0DelveInformant|r: " .. tostring(msg))
 end
 
+local function GetDebugChatFrame()
+  if not NUM_CHAT_WINDOWS or not GetChatWindowInfo then
+    return nil
+  end
+
+  for i = 1, NUM_CHAT_WINDOWS do
+    local windowName = GetChatWindowInfo(i)
+    if windowName == "Debug" then
+      return _G["ChatFrame" .. i]
+    end
+  end
+
+  return nil
+end
+
+local function NS_DebugPrint(msg)
+  local chatFrame = GetDebugChatFrame() or DEFAULT_CHAT_FRAME
+  chatFrame:AddMessage("|cFF69CCF0DelveInformant (Debug)|r: " .. tostring(msg))
+end
+
 local Clamp = DIUtils.Clamp or function(v, lo, hi)
   if v < lo then return lo end
   if v > hi then return hi end
@@ -250,9 +270,9 @@ local function LogScenarioStepNameIfChanged(force)
   if force or stepName ~= lastLoggedStepName then
     lastLoggedStepName = stepName
     if stepName then
-      NS_Print('Scenario step: "' .. tostring(stepName) .. '"')
+      NS_DebugPrint('Scenario step: "' .. tostring(stepName) .. '"')
     else
-      NS_Print("Scenario step: (none)")
+      NS_DebugPrint("Scenario step: (none)")
     end
   end
 end
@@ -266,7 +286,7 @@ local function LogHideReason(reason)
   if not DEBUG_HIDE_REASONS then return end
   if reason ~= lastHideReason then
     lastHideReason = reason
-    NS_Print("Hidden: " .. reason)
+    NS_DebugPrint("Hidden: " .. reason)
   end
 end
 
