@@ -658,7 +658,7 @@ local function RestorePosition()
   local pos = db.pos
   f:ClearAllPoints()
 
-  if pos and pos.point and pos.relativePoint and pos.x and pos.y then
+  if pos and pos.point and pos.relativePoint and pos.x ~= nil and pos.y ~= nil then
     f:SetPoint(pos.point, UIParent, pos.relativePoint, Snap(f, pos.x), Snap(f, pos.y))
   else
     f:SetPoint(BAR_POINT, UIParent, BAR_POINT, Snap(f, BAR_X), Snap(f, BAR_Y))
