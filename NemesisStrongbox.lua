@@ -644,6 +644,7 @@ local function SavePosition()
   local point, _, relativePoint, xOfs, yOfs = f:GetPoint(1)
   if not point then return end
 
+  relativePoint = relativePoint or point
   xOfs = Snap(f, xOfs or 0)
   yOfs = Snap(f, yOfs or 0)
 
@@ -658,8 +659,9 @@ local function RestorePosition()
   local pos = db.pos
   f:ClearAllPoints()
 
-  if pos and pos.point and pos.relativePoint and pos.x ~= nil and pos.y ~= nil then
-    f:SetPoint(pos.point, UIParent, pos.relativePoint, Snap(f, pos.x), Snap(f, pos.y))
+  if pos and pos.point and pos.x ~= nil and pos.y ~= nil then
+    local relativePoint = pos.relativePoint or pos.point
+    f:SetPoint(pos.point, UIParent, relativePoint, Snap(f, pos.x), Snap(f, pos.y))
   else
     f:SetPoint(BAR_POINT, UIParent, BAR_POINT, Snap(f, BAR_X), Snap(f, BAR_Y))
   end

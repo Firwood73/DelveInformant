@@ -364,9 +364,9 @@ end
 
 local function SavePosition()
   local point, _, relativePoint, x, y = f:GetPoint(1)
-  if point and relativePoint and x and y then
+  if point and x and y then
     db.point = point
-    db.relativePoint = relativePoint
+    db.relativePoint = relativePoint or point
     db.x = x
     db.y = y
   end
