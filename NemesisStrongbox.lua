@@ -653,17 +653,32 @@ local function SavePosition()
   db.pos.relativePoint = relativePoint
   db.pos.x = xOfs
   db.pos.y = yOfs
+
+  -- Keep legacy top-level keys in sync for compatibility with older builds/tools
+  -- that still read/write db.point/db.relativePoint/db.x/db.y.
+  db.point = point
+  db.relativePoint = relativePoint
+  db.x = xOfs
+  db.y = yOfs
 end
 
 local function RestorePosition()
   local pos = db.pos
+  local point = pos and pos.point or db.point
+  local relativePoint = (pos and pos.relativePoint) or db.relativePoint or point
+  local x = (pos and pos.x)
+  local y = (pos and pos.y)
+
+  if x == nil then x = db.x end
+  if y == nil then y = db.y end
+
   f:ClearAllPoints()
 
-  if pos and pos.point and pos.x ~= nil and pos.y ~= nil then
-    local relativePoint = pos.relativePoint or pos.point
-    f:SetPoint(pos.point, UIParent, relativePoint, Snap(f, pos.x), Snap(f, pos.y))
+  if point and x ~= nil and y ~= nil then
+    f:SetPoint(point, UIParent, relativePoint, Snap(f, x), Snap(f, y))
   else
     f:SetPoint(BAR_POINT, UIParent, BAR_POINT, Snap(f, BAR_X), Snap(f, BAR_Y))
+    SavePosition()
   end
 end
 
