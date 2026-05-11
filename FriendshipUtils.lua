@@ -255,6 +255,7 @@ DelveInformantLayout.base = DelveInformantLayout.base or {
   x = 0,
   y = 0,
 }
+DelveInformantLayout.containerPadding = DelveInformantLayout.containerPadding or 10
 
 local function LayoutClamp01(value)
   if value < 0 then return 0 end
@@ -388,8 +389,11 @@ function DelveInformantLayout.SetMoveMode(active, silent)
   EnsureLayoutDBDefaults()
   DelveInformantDB.moveMode = not not active
   DelveInformantLayout.ApplyMoveModeStates()
+  if DelveInformantLayout.UpdateContainer then
+    DelveInformantLayout.UpdateContainer()
+  end
   if not silent then
-    DI_Print(DelveInformantDB.moveMode and "Move mode enabled. Drag any DelveInformant bar to move the group, then use /dilock or /dimove to save." or "Move mode disabled.")
+    DI_Print(DelveInformantDB.moveMode and "Move mode enabled. Drag the DelveInformant mover box to move the group, then use /dilock or /dimove to save." or "Move mode disabled.")
   end
 end
 
@@ -403,11 +407,14 @@ function DelveInformantLayout.SetLocked(isLocked, silent)
     DelveInformantDB.ValeeraSanguinar.locked = DelveInformantDB.locked
   end
   DelveInformantLayout.ApplyLockStates()
+  if DelveInformantLayout.UpdateContainer then
+    DelveInformantLayout.UpdateContainer()
+  end
   if DelveInformantDB.locked then
     DelveInformantLayout.SetMoveMode(false, true)
   end
   if not silent then
-    DI_Print(DelveInformantDB.locked and "Locked." or "Unlocked. Drag any DelveInformant bar to move the group.")
+    DI_Print(DelveInformantDB.locked and "Locked." or "Unlocked. Drag the DelveInformant mover box to move the group.")
   end
 end
 
@@ -445,6 +452,9 @@ function DelveInformantLayout.Register(key, frame, order, options)
   entry.active = entry.active or false
   DelveInformantLayout.entries[key] = entry
   DelveInformantLayout.Apply()
+  if DelveInformantLayout.UpdateContainer then
+    DelveInformantLayout.UpdateContainer()
+  end
   return entry
 end
 
@@ -560,6 +570,127 @@ function DelveInformantLayout.UpdateTargets(snapNow)
   end
 
   DelveInformantLayout.Apply(false)
+  if DelveInformantLayout.UpdateContainer then
+    DelveInformantLayout.UpdateContainer()
+  end
+end
+
+local function GetFrameSize(frame)
+  local width = (frame and frame.GetWidth and frame:GetWidth()) or 0
+  local height = (frame and frame.GetHeight and frame:GetHeight()) or 0
+  return tonumber(width) or 0, tonumber(height) or 0
+end
+
+function DelveInformantLayout.EnsureContainer()
+  if DelveInformantLayout.container then
+    return DelveInformantLayout.container
+  end
+
+  local container = CreateFrame("Frame", "DelveInformantMoverFrame", UIParent, "BackdropTemplate")
+  container:SetFrameStrata("DIALOG")
+  container:SetFrameLevel(1000)
+  container:SetSize(280, 70)
+  container:SetClampedToScreen(true)
+  container:SetMovable(true)
+  container:EnableMouse(false)
+  container:RegisterForDrag("LeftButton")
+  container:Hide()
+
+  if container.SetBackdrop then
+    container:SetBackdrop({
+      bgFile = "Interface\\Tooltips\\UI-Tooltip-Background",
+      edgeFile = "Interface\\Tooltips\\UI-Tooltip-Border",
+      tile = true,
+      tileSize = 16,
+      edgeSize = 12,
+      insets = { left = 3, right = 3, top = 3, bottom = 3 },
+    })
+    container:SetBackdropColor(0, 0, 0, 0.25)
+    container:SetBackdropBorderColor(0.41, 0.8, 0.94, 0.95)
+  end
+
+  local label = container:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
+  label:SetPoint("TOP", container, "TOP", 0, -4)
+  label:SetText("DelveInformant unlocked - drag here")
+  container.label = label
+
+  local function StartContainerDrag()
+    if DelveInformantLayout.StartGroupDrag then
+      DelveInformantLayout.StartGroupDrag("container")
+    end
+  end
+
+  local function StopContainerDrag()
+    if DelveInformantLayout.StopGroupDrag then
+      DelveInformantLayout.StopGroupDrag()
+    end
+  end
+
+  container:SetScript("OnMouseDown", function(_, button)
+    if button == "LeftButton" then
+      StartContainerDrag()
+    end
+  end)
+  container:SetScript("OnMouseUp", function(_, button)
+    if button == "LeftButton" then
+      StopContainerDrag()
+    end
+  end)
+  container:SetScript("OnDragStart", StartContainerDrag)
+  container:SetScript("OnDragStop", StopContainerDrag)
+
+  DelveInformantLayout.container = container
+  return container
+end
+
+function DelveInformantLayout.UpdateContainer()
+  local container = DelveInformantLayout.EnsureContainer and DelveInformantLayout.EnsureContainer()
+  if not container then
+    return
+  end
+
+  local unlocked = not DelveInformantLayout.IsLocked()
+  if not unlocked then
+    container:EnableMouse(false)
+    container:Hide()
+    return
+  end
+
+  local activeEntries = GetActiveEntriesSorted()
+  local padding = DelveInformantLayout.containerPadding or 10
+  local maxWidth = 0
+  local topOffset
+  local bottomOffset
+
+  for i = 1, #activeEntries do
+    local entry = activeEntries[i]
+    local frameWidth, actualFrameHeight = GetFrameSize(entry.frame)
+    local frameHeight = tonumber(entry.rowHeight) or actualFrameHeight
+    maxWidth = math.max(maxWidth, frameWidth)
+
+    local offset = entry.currentOffsetY or 0
+    local top = offset + (frameHeight / 2)
+    local bottom = offset - (frameHeight / 2)
+    topOffset = topOffset and math.max(topOffset, top) or top
+    bottomOffset = bottomOffset and math.min(bottomOffset, bottom) or bottom
+  end
+
+  if not topOffset or not bottomOffset then
+    maxWidth = 250
+    topOffset = 15
+    bottomOffset = -15
+  end
+
+  local width = LayoutSnap(container, maxWidth + (padding * 2))
+  local height = LayoutSnap(container, (topOffset - bottomOffset) + (padding * 2) + 16)
+  local centerOffsetY = ((topOffset + bottomOffset) / 2) - 8
+  local base = DelveInformantLayout.base
+
+  container:SetSize(math.max(width, 180), math.max(height, 40))
+  container:ClearAllPoints()
+  container:SetPoint(base.point or "CENTER", UIParent, base.relativePoint or base.point or "CENTER", LayoutSnap(container, base.x or 0), LayoutSnap(container, (base.y or 0) + centerOffsetY))
+  container:EnableMouse(true)
+  container:Show()
 end
 
 function DelveInformantLayout.Apply(snapNow)
@@ -580,6 +711,10 @@ function DelveInformantLayout.Apply(snapNow)
       local y = LayoutSnap(frame, (base.y or 0) + (entry.currentOffsetY or 0))
       frame:SetPoint(base.point or "CENTER", UIParent, base.relativePoint or base.point or "CENTER", x, y)
     end
+  end
+
+  if DelveInformantLayout.UpdateContainer then
+    DelveInformantLayout.UpdateContainer()
   end
 end
 
@@ -649,6 +784,8 @@ function DelveInformantLayout.OnUpdate(dt)
 
   if anyAnimating then
     DelveInformantLayout.Apply(false)
+  elseif DelveInformantLayout.UpdateContainer then
+    DelveInformantLayout.UpdateContainer()
   end
 end
 
