@@ -190,11 +190,27 @@ local function GetValeeraClassColor()
 end
 
 local function EnsureDBDefaults()
-  if db.locked == nil then db.locked = true end
+  if type(DelveInformantDB) ~= "table" then
+    DelveInformantDB = {}
+  end
+  if type(DelveInformantDB.ValeeraSanguinar) ~= "table" then
+    DelveInformantDB.ValeeraSanguinar = {}
+  end
+  db = DelveInformantDB.ValeeraSanguinar
+
+  if DelveInformantDB.locked == nil then
+    DelveInformantDB.locked = (db.locked ~= nil) and (not not db.locked) or true
+  end
+  db.locked = DelveInformantDB.locked
+
   if db.point == nil then db.point = BAR_POINT end
   if db.relativePoint == nil then db.relativePoint = BAR_POINT end
   if db.x == nil then db.x = BAR_X end
   if db.y == nil then db.y = BAR_Y end
+
+  if type(DelveInformantDB.Layout) ~= "table" then
+    DelveInformantDB.Layout = {}
+  end
 end
 
 local f = CreateFrame("Frame", "DelveInformantValeeraSanguinarFrame", UIParent)
@@ -345,7 +361,7 @@ valueText:SetJustifyH("CENTER")
 
 local helperText = f:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
 helperText:SetPoint("TOP", f, "BOTTOM", 0, -2)
-helperText:SetText("/vslock /vsunlock /vsmove")
+helperText:SetText("/dilock /diunlock /dimove")
 helperText:SetShown(false)
 
 local isHovered = false
@@ -372,9 +388,15 @@ end
 
 local function RestorePosition()
   EnsureDBDefaults()
+  local layoutPos = DelveInformantDB and DelveInformantDB.Layout
+  local point = (layoutPos and layoutPos.point) or db.point
+  local relativePoint = (layoutPos and layoutPos.relativePoint) or db.relativePoint or point
+  local x = (layoutPos and layoutPos.x) or db.x
+  local y = (layoutPos and layoutPos.y) or db.y
+
   f:ClearAllPoints()
-  local x, y = SnapPoint(f, db.x, db.y)
-  f:SetPoint(db.point, UIParent, db.relativePoint, x, y)
+  local snappedX, snappedY = SnapPoint(f, x, y)
+  f:SetPoint(point, UIParent, relativePoint, snappedX, snappedY)
 end
 
 local function SavePosition()
@@ -382,26 +404,44 @@ local function SavePosition()
   if point and x and y then
     db.point = point
     db.relativePoint = relativePoint or point
-    db.x = x
-    db.y = y
+    db.x = Snap(f, x)
+    db.y = Snap(f, y)
+  end
+
+  if DILayout and DILayout.SetBaseFromEntryFrame then
+    DILayout.SetBaseFromEntryFrame(LAYOUT_KEY, f)
+  elseif DILayout and DILayout.SetBaseFromFrame then
+    DILayout.SetBaseFromFrame(f)
   end
 end
 
-local function SetLocked(locked)
+local function ApplyLockState(locked)
+  locked = (locked ~= nil) and locked or (DILayout and DILayout.IsLocked and DILayout.IsLocked()) or db.locked
   db.locked = locked and true or false
   helperText:SetShown(not db.locked)
-end
 
-f:SetScript("OnDragStart", function(self)
-  if not db.locked then
-    self:StartMoving()
+  if db.locked then
+    f:EnableMouse(false)
+    f:RegisterForDrag()
+    f:SetScript("OnDragStart", nil)
+    f:SetScript("OnDragStop", nil)
+  else
+    f:EnableMouse(true)
+    f:RegisterForDrag("LeftButton")
+    f:SetScript("OnDragStart", function()
+      if DILayout and DILayout.StartGroupDrag then
+        DILayout.StartGroupDrag(LAYOUT_KEY)
+      end
+    end)
+    f:SetScript("OnDragStop", function()
+      if DILayout and DILayout.StopGroupDrag then
+        DILayout.StopGroupDrag()
+      else
+        SavePosition()
+      end
+    end)
   end
-end)
-
-f:SetScript("OnDragStop", function(self)
-  self:StopMovingOrSizing()
-  SavePosition()
-end)
+end
 
 local function GetCompanionInfo()
   local companionFactionID = GetCompanionFactionID()
@@ -501,21 +541,6 @@ f:SetScript("OnLeave", function()
   UpdateValueText()
 end)
 
-SLASH_VALEERASANGUINARLOCK1 = "/vslock"
-SlashCmdList["VALEERASANGUINARLOCK"] = function()
-  SetLocked(true)
-end
-
-SLASH_VALEERASANGUINARUNLOCK1 = "/vsunlock"
-SlashCmdList["VALEERASANGUINARUNLOCK"] = function()
-  SetLocked(false)
-end
-
-SLASH_VALEERASANGUINARMOVE1 = "/vsmove"
-SlashCmdList["VALEERASANGUINARMOVE"] = function()
-  SetLocked(not db.locked)
-end
-
 local evt = CreateFrame("Frame")
 
 evt:RegisterEvent("PLAYER_ENTERING_WORLD")
@@ -567,5 +592,9 @@ RestorePosition()
 if DILayout and DILayout.Register then
   DILayout.Register(LAYOUT_KEY, f, LAYOUT_ORDER, { rowHeight = LAYOUT_ROW_HEIGHT, rowGap = LAYOUT_ROW_GAP })
 end
-SetLocked(db.locked)
+if DILayout and DILayout.RegisterLockable then
+  DILayout.RegisterLockable(LAYOUT_KEY, ApplyLockState)
+else
+  ApplyLockState(db.locked)
+end
 UpdateDisplay()
