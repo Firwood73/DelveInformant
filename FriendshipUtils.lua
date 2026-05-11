@@ -244,7 +244,7 @@ local DelveInformantLayout = _G.DelveInformantLayout or {}
 DelveInformantDB = DelveInformantDB or {}
 DelveInformantDB.Layout = DelveInformantDB.Layout or {}
 
-DelveInformantLayout.rowGap = DelveInformantLayout.rowGap or 18
+DelveInformantLayout.rowGap = DelveInformantLayout.rowGap or 6
 DelveInformantLayout.shiftSeconds = DelveInformantLayout.shiftSeconds or 0.25
 DelveInformantLayout.entries = DelveInformantLayout.entries or {}
 DelveInformantLayout.lockCallbacks = DelveInformantLayout.lockCallbacks or {}
@@ -255,7 +255,7 @@ DelveInformantLayout.base = DelveInformantLayout.base or {
   x = 0,
   y = 0,
 }
-DelveInformantLayout.containerPadding = DelveInformantLayout.containerPadding or 10
+DelveInformantLayout.containerPadding = DelveInformantLayout.containerPadding or 8
 
 local function LayoutClamp01(value)
   if value < 0 then return 0 end
@@ -325,6 +325,45 @@ local function EnsureLayoutDBDefaults()
   end
 end
 
+local function SaveEntryPositionToDB(entry)
+  if not entry or not entry.key then
+    return
+  end
+
+  local base = DelveInformantLayout.base
+  local point = base.point or "CENTER"
+  local relativePoint = base.relativePoint or point
+  local x = LayoutSnap(entry.frame or UIParent, base.x or 0)
+  local y = LayoutSnap(entry.frame or UIParent, (base.y or 0) + (entry.currentOffsetY or 0))
+
+  if entry.key == "strongbox" then
+    DelveInformantDB.NemesisStrongbox = DelveInformantDB.NemesisStrongbox or {}
+    local strongboxDB = DelveInformantDB.NemesisStrongbox
+    strongboxDB.pos = strongboxDB.pos or {}
+    strongboxDB.pos.point = point
+    strongboxDB.pos.relativePoint = relativePoint
+    strongboxDB.pos.x = x
+    strongboxDB.pos.y = y
+    strongboxDB.point = point
+    strongboxDB.relativePoint = relativePoint
+    strongboxDB.x = x
+    strongboxDB.y = y
+  elseif entry.key == "valeera" then
+    DelveInformantDB.ValeeraSanguinar = DelveInformantDB.ValeeraSanguinar or {}
+    local valeeraDB = DelveInformantDB.ValeeraSanguinar
+    valeeraDB.point = point
+    valeeraDB.relativePoint = relativePoint
+    valeeraDB.x = x
+    valeeraDB.y = y
+  end
+end
+
+local function SaveEntryPositionsToDB()
+  for _, entry in pairs(DelveInformantLayout.entries or {}) do
+    SaveEntryPositionToDB(entry)
+  end
+end
+
 local function SaveLayoutBase()
   EnsureLayoutDBDefaults()
   local db = DelveInformantDB.Layout
@@ -333,6 +372,7 @@ local function SaveLayoutBase()
   db.relativePoint = base.relativePoint or db.point
   db.x = base.x or 0
   db.y = base.y or 0
+  SaveEntryPositionsToDB()
 end
 
 function DelveInformantLayout.RestoreBase(defaultPoint, defaultRelativePoint, defaultX, defaultY)
@@ -451,7 +491,7 @@ function DelveInformantLayout.Register(key, frame, order, options)
   entry.animating = false
   entry.active = entry.active or false
   DelveInformantLayout.entries[key] = entry
-  DelveInformantLayout.Apply()
+  DelveInformantLayout.UpdateTargets(true)
   if DelveInformantLayout.UpdateContainer then
     DelveInformantLayout.UpdateContainer()
   end
@@ -522,8 +562,12 @@ function DelveInformantLayout.SetActive(key, active)
     return
   end
 
+  local snapNow = active and not entry.activatedOnce
   entry.active = active
-  DelveInformantLayout.UpdateTargets(false)
+  if active then
+    entry.activatedOnce = true
+  end
+  DelveInformantLayout.UpdateTargets(snapNow)
 end
 
 local function GetActiveEntriesSorted()
