@@ -322,6 +322,7 @@ bg:SetColorTexture(BG_R, BG_G, BG_B, BG_A)
 
 local bar = CreateFrame("StatusBar", nil, f)
 bar:SetFrameLevel(f:GetFrameLevel() + 1)
+bar:EnableMouse(false)
 bar:SetPoint("TOPLEFT", INSET_SIZE, -INSET_SIZE)
 bar:SetPoint("BOTTOMRIGHT", -INSET_SIZE, INSET_SIZE - 1)
 bar:SetMinMaxValues(0, 1)
@@ -364,6 +365,12 @@ local helperText = f:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
 helperText:SetPoint("TOP", f, "BOTTOM", 0, -2)
 helperText:SetText("/dilock /diunlock /dimove")
 helperText:SetShown(false)
+
+local dragSurface = CreateFrame("Frame", nil, f)
+dragSurface:SetAllPoints(f)
+dragSurface:SetFrameLevel(f:GetFrameLevel() + 20)
+dragSurface:EnableMouse(false)
+dragSurface:RegisterForDrag("LeftButton")
 
 local isHovered = false
 local lastEarned = 0
@@ -426,21 +433,38 @@ local function ApplyLockState(locked)
     f:RegisterForDrag()
     f:SetScript("OnDragStart", nil)
     f:SetScript("OnDragStop", nil)
+    dragSurface:EnableMouse(false)
+    dragSurface:RegisterForDrag()
+    dragSurface:SetScript("OnDragStart", nil)
+    dragSurface:SetScript("OnDragStop", nil)
   else
-    f:EnableMouse(true)
-    f:RegisterForDrag("LeftButton")
-    f:SetScript("OnDragStart", function()
+    local function OnDragStart()
       if DILayout and DILayout.StartGroupDrag then
         DILayout.StartGroupDrag(LAYOUT_KEY)
+      elseif f.StartMoving then
+        f:StartMoving()
       end
-    end)
-    f:SetScript("OnDragStop", function()
+    end
+
+    local function OnDragStop()
       if DILayout and DILayout.StopGroupDrag then
         DILayout.StopGroupDrag()
       else
+        if f.StopMovingOrSizing then
+          f:StopMovingOrSizing()
+        end
         SavePosition()
       end
-    end)
+    end
+
+    f:EnableMouse(true)
+    f:RegisterForDrag("LeftButton")
+    f:SetScript("OnDragStart", OnDragStart)
+    f:SetScript("OnDragStop", OnDragStop)
+    dragSurface:EnableMouse(true)
+    dragSurface:RegisterForDrag("LeftButton")
+    dragSurface:SetScript("OnDragStart", OnDragStart)
+    dragSurface:SetScript("OnDragStop", OnDragStop)
   end
 end
 
@@ -557,15 +581,20 @@ local function ApplyMoveMode(active)
   end
 end
 
-f:SetScript("OnEnter", function()
+local function OnEnter()
   isHovered = true
   UpdateValueText()
-end)
+end
 
-f:SetScript("OnLeave", function()
+local function OnLeave()
   isHovered = false
   UpdateValueText()
-end)
+end
+
+f:SetScript("OnEnter", OnEnter)
+f:SetScript("OnLeave", OnLeave)
+dragSurface:SetScript("OnEnter", OnEnter)
+dragSurface:SetScript("OnLeave", OnLeave)
 
 local evt = CreateFrame("Frame")
 

@@ -430,6 +430,7 @@ ApplyBarPoints()
 bar:SetMinMaxValues(0, 1)
 bar:SetValue(0)
 bar:SetFrameLevel(f:GetFrameLevel() + 1)
+bar:EnableMouse(false)
 
 local barBG = bar:CreateTexture(nil, "BACKGROUND")
 barBG:SetAllPoints(true)
@@ -623,6 +624,12 @@ msg:SetJustifyV("MIDDLE")
 msg:SetText("")
 msg:SetAlpha(0)
 
+local dragSurface = CreateFrame("Frame", nil, f)
+dragSurface:SetAllPoints(f)
+dragSurface:SetFrameLevel(f:GetFrameLevel() + 20)
+dragSurface:EnableMouse(false)
+dragSurface:RegisterForDrag("LeftButton")
+
 -- =========================
 -- DB: position + lock state
 -- =========================
@@ -726,22 +733,39 @@ local function ApplyLockState(locked)
     f:RegisterForDrag()
     f:SetScript("OnDragStart", nil)
     f:SetScript("OnDragStop", nil)
+    dragSurface:EnableMouse(false)
+    dragSurface:RegisterForDrag()
+    dragSurface:SetScript("OnDragStart", nil)
+    dragSurface:SetScript("OnDragStop", nil)
   else
-    f:EnableMouse(true)
-    f:RegisterForDrag("LeftButton")
-    f:SetScript("OnDragStart", function()
+    local function OnDragStart()
       if DILayout and DILayout.StartGroupDrag then
         DILayout.StartGroupDrag(LAYOUT_KEY)
+      elseif f.StartMoving then
+        f:StartMoving()
       end
-    end)
-    f:SetScript("OnDragStop", function()
+    end
+
+    local function OnDragStop()
       if DILayout and DILayout.StopGroupDrag then
         DILayout.StopGroupDrag()
       else
+        if f.StopMovingOrSizing then
+          f:StopMovingOrSizing()
+        end
         SavePosition()
       end
       PositionAllTicks()
-    end)
+    end
+
+    f:EnableMouse(true)
+    f:RegisterForDrag("LeftButton")
+    f:SetScript("OnDragStart", OnDragStart)
+    f:SetScript("OnDragStop", OnDragStop)
+    dragSurface:EnableMouse(true)
+    dragSurface:RegisterForDrag("LeftButton")
+    dragSurface:SetScript("OnDragStart", OnDragStart)
+    dragSurface:SetScript("OnDragStop", OnDragStop)
   end
 end
 
