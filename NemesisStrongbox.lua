@@ -649,8 +649,19 @@ local function EnsureDBDefaults()
     end
   end
 
-  if db.locked == nil then
-    db.locked = true
+  if DelveInformantDB.locked == nil then
+    DelveInformantDB.locked = (db.locked ~= nil) and (not not db.locked) or true
+  end
+  db.locked = DelveInformantDB.locked
+
+  if type(DelveInformantDB.Layout) ~= "table" then
+    DelveInformantDB.Layout = {}
+  end
+  if DelveInformantDB.Layout.x == nil and db.pos and db.pos.x ~= nil then
+    DelveInformantDB.Layout.point = db.pos.point
+    DelveInformantDB.Layout.relativePoint = db.pos.relativePoint
+    DelveInformantDB.Layout.x = db.pos.x
+    DelveInformantDB.Layout.y = db.pos.y
   end
 end
 
@@ -674,14 +685,21 @@ local function SavePosition()
   db.relativePoint = relativePoint
   db.x = xOfs
   db.y = yOfs
+
+  if DILayout and DILayout.SetBaseFromEntryFrame then
+    DILayout.SetBaseFromEntryFrame(LAYOUT_KEY, f)
+  elseif DILayout and DILayout.SetBaseFromFrame then
+    DILayout.SetBaseFromFrame(f)
+  end
 end
 
 local function RestorePosition()
+  local layoutPos = DelveInformantDB and DelveInformantDB.Layout
   local pos = db.pos
-  local point = pos and pos.point or db.point
-  local relativePoint = (pos and pos.relativePoint) or db.relativePoint or point
-  local x = (pos and pos.x)
-  local y = (pos and pos.y)
+  local point = (layoutPos and layoutPos.point) or (pos and pos.point) or db.point
+  local relativePoint = (layoutPos and layoutPos.relativePoint) or (pos and pos.relativePoint) or db.relativePoint or point
+  local x = layoutPos and layoutPos.x or (pos and pos.x)
+  local y = layoutPos and layoutPos.y or (pos and pos.y)
 
   if x == nil then x = db.x end
   if y == nil then y = db.y end
@@ -696,8 +714,11 @@ local function RestorePosition()
   end
 end
 
-local function ApplyLockState()
-  if db.locked then
+local function ApplyLockState(locked)
+  locked = (locked ~= nil) and locked or (DILayout and DILayout.IsLocked and DILayout.IsLocked()) or db.locked
+  db.locked = not not locked
+
+  if locked then
     f:EnableMouse(false)
     f:RegisterForDrag()
     f:SetScript("OnDragStart", nil)
@@ -705,31 +726,20 @@ local function ApplyLockState()
   else
     f:EnableMouse(true)
     f:RegisterForDrag("LeftButton")
-    f:SetScript("OnDragStart", function(self)
-      if DILayout then
-        DILayout.suspended = true
+    f:SetScript("OnDragStart", function()
+      if DILayout and DILayout.StartGroupDrag then
+        DILayout.StartGroupDrag(LAYOUT_KEY)
       end
-      self:StartMoving()
     end)
-    f:SetScript("OnDragStop", function(self)
-      self:StopMovingOrSizing()
-      if DILayout then
-        DILayout.suspended = false
+    f:SetScript("OnDragStop", function()
+      if DILayout and DILayout.StopGroupDrag then
+        DILayout.StopGroupDrag()
+      else
+        SavePosition()
       end
-      SavePosition()
-      if DILayout and DILayout.SetBaseFromFrame then
-        DILayout.SetBaseFromFrame(f)
-      end
-      NS_Print("Position saved.")
       PositionAllTicks()
     end)
   end
-end
-
-local function SetLocked(isLocked)
-  db.locked = not not isLocked
-  ApplyLockState()
-  NS_Print(db.locked and "Locked." or "Unlocked. Drag to move.")
 end
 
 -- =========================
@@ -1068,27 +1078,21 @@ evt:SetScript("OnEvent", function(_, event)
 end)
 
 -- =========================
--- Commands
--- =========================
-SLASH_DELVEINFORMANTLOCK1 = "/nslock"
-SlashCmdList["DELVEINFORMANTLOCK"] = function() SetLocked(true) end
-
-SLASH_DELVEINFORMANTUNLOCK1 = "/nsunlock"
-SlashCmdList["DELVEINFORMANTUNLOCK"] = function() SetLocked(false) end
-
-SLASH_DELVEINFORMANTMOVE1 = "/nsmove"
-SlashCmdList["DELVEINFORMANTMOVE"] = function() SetLocked(not db.locked) end
-
--- =========================
 -- Init
 -- =========================
 EnsureDBDefaults()
 RestorePosition()
+if DILayout and DILayout.RestoreBase then
+  DILayout.RestoreBase(db.point or BAR_POINT, db.relativePoint or BAR_POINT, db.x or BAR_X, db.y or BAR_Y)
+end
 if DILayout and DILayout.Register then
-  DILayout.SetBaseFromFrame(f)
   DILayout.Register(LAYOUT_KEY, f, LAYOUT_ORDER, { rowHeight = LAYOUT_ROW_HEIGHT, rowGap = LAYOUT_ROW_GAP })
 end
-ApplyLockState()
+if DILayout and DILayout.RegisterLockable then
+  DILayout.RegisterLockable(LAYOUT_KEY, ApplyLockState)
+else
+  ApplyLockState()
+end
 
 StartGraceWindow()
 UpdateDisplay()

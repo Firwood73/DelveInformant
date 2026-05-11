@@ -241,9 +241,13 @@ _G.CreateSegmentedBorder = CreateSegmentedBorder
 -- The strongbox is the anchor row; ally bars occupy the next rows below it.
 local DelveInformantLayout = _G.DelveInformantLayout or {}
 
+DelveInformantDB = DelveInformantDB or {}
+DelveInformantDB.Layout = DelveInformantDB.Layout or {}
+
 DelveInformantLayout.rowGap = DelveInformantLayout.rowGap or 18
 DelveInformantLayout.shiftSeconds = DelveInformantLayout.shiftSeconds or 0.25
 DelveInformantLayout.entries = DelveInformantLayout.entries or {}
+DelveInformantLayout.lockCallbacks = DelveInformantLayout.lockCallbacks or {}
 DelveInformantLayout.base = DelveInformantLayout.base or {
   point = "CENTER",
   relativePoint = "CENTER",
@@ -262,6 +266,113 @@ local function LayoutSnap(frame, value)
     return DelveInformantUtils.Snap(frame, value)
   end
   return value or 0
+end
+
+
+local function DI_Print(msg)
+  local chatFrame = DEFAULT_CHAT_FRAME
+  if chatFrame and chatFrame.AddMessage then
+    chatFrame:AddMessage("|cFF69CCF0DelveInformant|r: " .. tostring(msg))
+  end
+end
+
+local function EnsureLayoutDBDefaults()
+  DelveInformantDB = DelveInformantDB or {}
+  DelveInformantDB.Layout = DelveInformantDB.Layout or {}
+
+  if DelveInformantDB.Layout.x == nil then
+    local strongboxDB = DelveInformantDB.NemesisStrongbox
+    local valeeraDB = DelveInformantDB.ValeeraSanguinar
+    local strongboxPos = type(strongboxDB) == "table" and strongboxDB.pos
+    if type(strongboxPos) == "table" and strongboxPos.x ~= nil then
+      DelveInformantDB.Layout.point = strongboxPos.point
+      DelveInformantDB.Layout.relativePoint = strongboxPos.relativePoint
+      DelveInformantDB.Layout.x = strongboxPos.x
+      DelveInformantDB.Layout.y = strongboxPos.y
+    elseif type(strongboxDB) == "table" and strongboxDB.x ~= nil then
+      DelveInformantDB.Layout.point = strongboxDB.point
+      DelveInformantDB.Layout.relativePoint = strongboxDB.relativePoint
+      DelveInformantDB.Layout.x = strongboxDB.x
+      DelveInformantDB.Layout.y = strongboxDB.y
+    elseif type(valeeraDB) == "table" and valeeraDB.x ~= nil then
+      DelveInformantDB.Layout.point = valeeraDB.point
+      DelveInformantDB.Layout.relativePoint = valeeraDB.relativePoint
+      DelveInformantDB.Layout.x = valeeraDB.x
+      DelveInformantDB.Layout.y = valeeraDB.y
+    end
+  end
+
+  if DelveInformantDB.locked == nil then
+    local strongboxDB = DelveInformantDB.NemesisStrongbox
+    local valeeraDB = DelveInformantDB.ValeeraSanguinar
+    if type(strongboxDB) == "table" and strongboxDB.locked ~= nil then
+      DelveInformantDB.locked = not not strongboxDB.locked
+    elseif type(valeeraDB) == "table" and valeeraDB.locked ~= nil then
+      DelveInformantDB.locked = not not valeeraDB.locked
+    else
+      DelveInformantDB.locked = true
+    end
+  end
+end
+
+local function SaveLayoutBase()
+  EnsureLayoutDBDefaults()
+  local db = DelveInformantDB.Layout
+  local base = DelveInformantLayout.base
+  db.point = base.point or "CENTER"
+  db.relativePoint = base.relativePoint or db.point
+  db.x = base.x or 0
+  db.y = base.y or 0
+end
+
+function DelveInformantLayout.RestoreBase(defaultPoint, defaultRelativePoint, defaultX, defaultY)
+  EnsureLayoutDBDefaults()
+  local db = DelveInformantDB.Layout
+  DelveInformantLayout.base.point = db.point or defaultPoint or DelveInformantLayout.base.point or "CENTER"
+  DelveInformantLayout.base.relativePoint = db.relativePoint or defaultRelativePoint or DelveInformantLayout.base.relativePoint or DelveInformantLayout.base.point
+  DelveInformantLayout.base.x = tonumber(db.x)
+  if DelveInformantLayout.base.x == nil then DelveInformantLayout.base.x = tonumber(defaultX) or 0 end
+  DelveInformantLayout.base.y = tonumber(db.y)
+  if DelveInformantLayout.base.y == nil then DelveInformantLayout.base.y = tonumber(defaultY) or 0 end
+  SaveLayoutBase()
+end
+
+function DelveInformantLayout.IsLocked()
+  EnsureLayoutDBDefaults()
+  return not not DelveInformantDB.locked
+end
+
+function DelveInformantLayout.RegisterLockable(key, applyFn)
+  if key and type(applyFn) == "function" then
+    DelveInformantLayout.lockCallbacks[key] = applyFn
+    applyFn(DelveInformantLayout.IsLocked())
+  end
+end
+
+function DelveInformantLayout.ApplyLockStates()
+  local locked = DelveInformantLayout.IsLocked()
+  for _, applyFn in pairs(DelveInformantLayout.lockCallbacks) do
+    applyFn(locked)
+  end
+end
+
+function DelveInformantLayout.SetLocked(isLocked, silent)
+  EnsureLayoutDBDefaults()
+  DelveInformantDB.locked = not not isLocked
+  if type(DelveInformantDB.NemesisStrongbox) == "table" then
+    DelveInformantDB.NemesisStrongbox.locked = DelveInformantDB.locked
+  end
+  if type(DelveInformantDB.ValeeraSanguinar) == "table" then
+    DelveInformantDB.ValeeraSanguinar.locked = DelveInformantDB.locked
+  end
+  DelveInformantLayout.ApplyLockStates()
+  if not silent then
+    DI_Print(DelveInformantDB.locked and "Locked." or "Unlocked. Drag any DelveInformant bar to move the group.")
+  end
+end
+
+function DelveInformantLayout.ToggleLocked()
+  DelveInformantLayout.SetLocked(not DelveInformantLayout.IsLocked())
 end
 
 function DelveInformantLayout.Register(key, frame, order, options)
@@ -288,7 +399,7 @@ function DelveInformantLayout.Register(key, frame, order, options)
   return entry
 end
 
-function DelveInformantLayout.SetBaseFromFrame(frame)
+function DelveInformantLayout.SetBaseFromFrame(frame, save)
   if not frame or not frame.GetPoint then
     return
   end
@@ -302,14 +413,42 @@ function DelveInformantLayout.SetBaseFromFrame(frame)
   DelveInformantLayout.base.relativePoint = relativePoint or point
   DelveInformantLayout.base.x = LayoutSnap(frame, x or 0)
   DelveInformantLayout.base.y = LayoutSnap(frame, y or 0)
+  if save ~= false then
+    SaveLayoutBase()
+  end
   DelveInformantLayout.Apply(true)
 end
 
-function DelveInformantLayout.SetBase(point, relativePoint, x, y)
+function DelveInformantLayout.SetBaseFromEntryFrame(key, frame, save)
+  if not key or not frame or not frame.GetPoint then
+    return
+  end
+
+  local point, _, relativePoint, x, y = frame:GetPoint(1)
+  if not point then
+    return
+  end
+
+  local entry = DelveInformantLayout.entries[key]
+  local offsetY = (entry and entry.currentOffsetY) or 0
+  DelveInformantLayout.base.point = point
+  DelveInformantLayout.base.relativePoint = relativePoint or point
+  DelveInformantLayout.base.x = LayoutSnap(frame, x or 0)
+  DelveInformantLayout.base.y = LayoutSnap(frame, (y or 0) - offsetY)
+  if save ~= false then
+    SaveLayoutBase()
+  end
+  DelveInformantLayout.Apply(true)
+end
+
+function DelveInformantLayout.SetBase(point, relativePoint, x, y, save)
   DelveInformantLayout.base.point = point or DelveInformantLayout.base.point or "CENTER"
   DelveInformantLayout.base.relativePoint = relativePoint or DelveInformantLayout.base.relativePoint or DelveInformantLayout.base.point
   DelveInformantLayout.base.x = tonumber(x) or 0
   DelveInformantLayout.base.y = tonumber(y) or 0
+  if save ~= false then
+    SaveLayoutBase()
+  end
   DelveInformantLayout.Apply(true)
 end
 
@@ -395,7 +534,50 @@ function DelveInformantLayout.Apply(snapNow)
   end
 end
 
+function DelveInformantLayout.StartGroupDrag(key)
+  if DelveInformantLayout.IsLocked() or not GetCursorPosition then
+    return
+  end
+
+  local cursorX, cursorY = GetCursorPosition()
+  local scale = (UIParent and UIParent.GetEffectiveScale and UIParent:GetEffectiveScale()) or 1
+  DelveInformantLayout.drag = {
+    key = key,
+    cursorX = cursorX or 0,
+    cursorY = cursorY or 0,
+    scale = scale,
+    baseX = DelveInformantLayout.base.x or 0,
+    baseY = DelveInformantLayout.base.y or 0,
+  }
+end
+
+function DelveInformantLayout.StopGroupDrag()
+  if not DelveInformantLayout.drag then
+    return
+  end
+
+  DelveInformantLayout.drag = nil
+  SaveLayoutBase()
+  DelveInformantLayout.Apply(true)
+  DI_Print("Position saved.")
+end
+
+local function UpdateGroupDrag()
+  local drag = DelveInformantLayout.drag
+  if not drag or not GetCursorPosition then
+    return
+  end
+
+  local cursorX, cursorY = GetCursorPosition()
+  local scale = drag.scale or 1
+  DelveInformantLayout.base.x = LayoutSnap(UIParent, (drag.baseX or 0) + ((cursorX or 0) - (drag.cursorX or 0)) / scale)
+  DelveInformantLayout.base.y = LayoutSnap(UIParent, (drag.baseY or 0) + ((cursorY or 0) - (drag.cursorY or 0)) / scale)
+  DelveInformantLayout.Apply(false)
+end
+
 function DelveInformantLayout.OnUpdate(dt)
+  UpdateGroupDrag()
+
   local anyAnimating = false
 
   for _, entry in pairs(DelveInformantLayout.entries) do
@@ -421,11 +603,26 @@ function DelveInformantLayout.OnUpdate(dt)
   end
 end
 
+EnsureLayoutDBDefaults()
+if not DelveInformantLayout.baseRestored then
+  DelveInformantLayout.RestoreBase("CENTER", "CENTER", 0, 0)
+  DelveInformantLayout.baseRestored = true
+end
+
 if not DelveInformantLayout.driver then
   DelveInformantLayout.driver = CreateFrame("Frame")
   DelveInformantLayout.driver:SetScript("OnUpdate", function(_, dt)
     DelveInformantLayout.OnUpdate(dt)
   end)
 end
+
+SLASH_DELVEINFORMANTLOCK1 = "/dilock"
+SlashCmdList["DELVEINFORMANTLOCK"] = function() DelveInformantLayout.SetLocked(true) end
+
+SLASH_DELVEINFORMANTUNLOCK1 = "/diunlock"
+SlashCmdList["DELVEINFORMANTUNLOCK"] = function() DelveInformantLayout.SetLocked(false) end
+
+SLASH_DELVEINFORMANTMOVE1 = "/dimove"
+SlashCmdList["DELVEINFORMANTMOVE"] = function() DelveInformantLayout.ToggleLocked() end
 
 _G.DelveInformantLayout = DelveInformantLayout
