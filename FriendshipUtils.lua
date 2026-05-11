@@ -248,6 +248,7 @@ DelveInformantLayout.rowGap = DelveInformantLayout.rowGap or 18
 DelveInformantLayout.shiftSeconds = DelveInformantLayout.shiftSeconds or 0.25
 DelveInformantLayout.entries = DelveInformantLayout.entries or {}
 DelveInformantLayout.lockCallbacks = DelveInformantLayout.lockCallbacks or {}
+DelveInformantLayout.moveModeCallbacks = DelveInformantLayout.moveModeCallbacks or {}
 DelveInformantLayout.base = DelveInformantLayout.base or {
   point = "CENTER",
   relativePoint = "CENTER",
@@ -302,6 +303,10 @@ local function EnsureLayoutDBDefaults()
     end
   end
 
+  if DelveInformantDB.moveMode == nil then
+    DelveInformantDB.moveMode = false
+  end
+
   if DelveInformantDB.locked == nil then
     local strongboxDB = DelveInformantDB.NemesisStrongbox
     local valeeraDB = DelveInformantDB.ValeeraSanguinar
@@ -312,6 +317,10 @@ local function EnsureLayoutDBDefaults()
     else
       DelveInformantDB.locked = true
     end
+  end
+
+  if DelveInformantDB.locked then
+    DelveInformantDB.moveMode = false
   end
 end
 
@@ -356,6 +365,34 @@ function DelveInformantLayout.ApplyLockStates()
   end
 end
 
+function DelveInformantLayout.IsMoveMode()
+  EnsureLayoutDBDefaults()
+  return not not DelveInformantDB.moveMode
+end
+
+function DelveInformantLayout.RegisterMoveMode(key, applyFn)
+  if key and type(applyFn) == "function" then
+    DelveInformantLayout.moveModeCallbacks[key] = applyFn
+    applyFn(DelveInformantLayout.IsMoveMode())
+  end
+end
+
+function DelveInformantLayout.ApplyMoveModeStates()
+  local active = DelveInformantLayout.IsMoveMode()
+  for _, applyFn in pairs(DelveInformantLayout.moveModeCallbacks) do
+    applyFn(active)
+  end
+end
+
+function DelveInformantLayout.SetMoveMode(active, silent)
+  EnsureLayoutDBDefaults()
+  DelveInformantDB.moveMode = not not active
+  DelveInformantLayout.ApplyMoveModeStates()
+  if not silent then
+    DI_Print(DelveInformantDB.moveMode and "Move mode enabled. Drag any DelveInformant bar to move the group, then use /dilock or /dimove to save." or "Move mode disabled.")
+  end
+end
+
 function DelveInformantLayout.SetLocked(isLocked, silent)
   EnsureLayoutDBDefaults()
   DelveInformantDB.locked = not not isLocked
@@ -366,6 +403,9 @@ function DelveInformantLayout.SetLocked(isLocked, silent)
     DelveInformantDB.ValeeraSanguinar.locked = DelveInformantDB.locked
   end
   DelveInformantLayout.ApplyLockStates()
+  if DelveInformantDB.locked then
+    DelveInformantLayout.SetMoveMode(false, true)
+  end
   if not silent then
     DI_Print(DelveInformantDB.locked and "Locked." or "Unlocked. Drag any DelveInformant bar to move the group.")
   end
@@ -373,6 +413,15 @@ end
 
 function DelveInformantLayout.ToggleLocked()
   DelveInformantLayout.SetLocked(not DelveInformantLayout.IsLocked())
+end
+
+function DelveInformantLayout.ToggleMoveMode()
+  if DelveInformantLayout.IsMoveMode() then
+    DelveInformantLayout.SetLocked(true)
+  else
+    DelveInformantLayout.SetLocked(false, true)
+    DelveInformantLayout.SetMoveMode(true)
+  end
 end
 
 function DelveInformantLayout.Register(key, frame, order, options)
@@ -620,9 +669,12 @@ SLASH_DELVEINFORMANTLOCK1 = "/dilock"
 SlashCmdList["DELVEINFORMANTLOCK"] = function() DelveInformantLayout.SetLocked(true) end
 
 SLASH_DELVEINFORMANTUNLOCK1 = "/diunlock"
-SlashCmdList["DELVEINFORMANTUNLOCK"] = function() DelveInformantLayout.SetLocked(false) end
+SlashCmdList["DELVEINFORMANTUNLOCK"] = function()
+  DelveInformantLayout.SetLocked(false, true)
+  DelveInformantLayout.SetMoveMode(true)
+end
 
 SLASH_DELVEINFORMANTMOVE1 = "/dimove"
-SlashCmdList["DELVEINFORMANTMOVE"] = function() DelveInformantLayout.ToggleLocked() end
+SlashCmdList["DELVEINFORMANTMOVE"] = function() DelveInformantLayout.ToggleMoveMode() end
 
 _G.DelveInformantLayout = DelveInformantLayout

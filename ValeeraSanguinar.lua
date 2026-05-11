@@ -225,6 +225,7 @@ f:RegisterForDrag("LeftButton")
 local fadeActive, fadeElapsed, fadeDuration = false, 0, 0
 local fadeFrom, fadeTo = 0, 0
 local fadeHideOnDone = false
+local moveModeActive = false
 
 local Clamp = DIUtils.Clamp or function(v, lo, hi)
   if v < lo then return lo end
@@ -482,6 +483,10 @@ local function GetCompanionInfo()
 end
 
 local function UpdateDisplay()
+  if moveModeActive then
+    return
+  end
+
   if IsPlayerInCombat() then
     HideFrameWithFade()
     return
@@ -529,6 +534,27 @@ local function UpdateDisplay()
   UpdateValueText()
 
   ShowFrameWithFadeIfNeeded()
+end
+
+local function ApplyMoveMode(active)
+  moveModeActive = not not active
+
+  if moveModeActive then
+    fadeActive = false
+    SetLayoutActive(true)
+    nameText:SetText(VALEERA_NAME)
+    levelText:SetText(string.format("Level --/%s", Crayon:Green(tonumber(GetCurrentSeasonMaxLevel()) or 0)))
+    valueText:SetText("Drag to move")
+    bar:SetMinMaxValues(0, 1)
+    bar:SetValue(0.5)
+    bar:SetStatusBarColor(BORDER_R, 0, 0, 1)
+    helperText:SetShown(true)
+    f:SetAlpha(1)
+    f:Show()
+  else
+    helperText:SetShown(not db.locked)
+    UpdateDisplay()
+  end
 end
 
 f:SetScript("OnEnter", function()
@@ -596,5 +622,10 @@ if DILayout and DILayout.RegisterLockable then
   DILayout.RegisterLockable(LAYOUT_KEY, ApplyLockState)
 else
   ApplyLockState(db.locked)
+end
+if DILayout and DILayout.RegisterMoveMode then
+  DILayout.RegisterMoveMode(LAYOUT_KEY, ApplyMoveMode)
+else
+  ApplyMoveMode(false)
 end
 UpdateDisplay()

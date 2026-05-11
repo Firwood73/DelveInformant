@@ -331,7 +331,10 @@ local fadeActive, fadeElapsed, fadeDuration = false, 0, 0
 local fadeFrom, fadeTo = 0, 0
 local fadeHideOnDone = false
 local lastShownState = false
+local moveModeActive = false
 local ResetToHiddenEmptyState
+local ApplyVisualsFromFound
+local UpdateDisplay
 
 local function SetLayoutActive(active)
   if DILayout and DILayout.SetActive then
@@ -742,6 +745,23 @@ local function ApplyLockState(locked)
   end
 end
 
+local function ApplyMoveMode(active)
+  moveModeActive = not not active
+
+  if moveModeActive then
+    StopFade()
+    lastShownState = true
+    SetLayoutActive(true)
+    titleText:SetText(GetCurrentSeasonMaxLevel())
+    ApplyVisualsFromFound(2, MAX_SUPPORTED_TOTAL, true)
+    f:SetAlpha(1)
+    f:Show()
+  else
+    msg:SetText("")
+    UpdateDisplay()
+  end
+end
+
 -- =========================
 -- Coloring (based on absolute FOUND count)
 -- 1-2 = green, 3 = blue, 4+ = purple
@@ -812,7 +832,7 @@ end
 local lastGoodFound = 0
 local lastGoodTotal = 0
 
-local function ApplyVisualsFromFound(found, total, snapBarNow)
+ApplyVisualsFromFound = function(found, total, snapBarNow)
   found = tonumber(found) or 0
   total = tonumber(total) or 0
 
@@ -907,7 +927,11 @@ end
 -- =========================
 -- Update logic
 -- =========================
-local function UpdateDisplay()
+UpdateDisplay = function()
+  if moveModeActive then
+    return
+  end
+
   LogScenarioStepNameIfChanged(false)
   SetTickAndBorderThemeForCurrentState()
 
@@ -1092,6 +1116,11 @@ if DILayout and DILayout.RegisterLockable then
   DILayout.RegisterLockable(LAYOUT_KEY, ApplyLockState)
 else
   ApplyLockState()
+end
+if DILayout and DILayout.RegisterMoveMode then
+  DILayout.RegisterMoveMode(LAYOUT_KEY, ApplyMoveMode)
+else
+  ApplyMoveMode(false)
 end
 
 StartGraceWindow()
