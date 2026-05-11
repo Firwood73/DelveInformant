@@ -236,3 +236,196 @@ local function CreateSegmentedBorder(parentFrame, options)
 end
 
 _G.CreateSegmentedBorder = CreateSegmentedBorder
+
+-- Shared vertical stack layout for DelveInformant bars.
+-- The strongbox is the anchor row; ally bars occupy the next rows below it.
+local DelveInformantLayout = _G.DelveInformantLayout or {}
+
+DelveInformantLayout.rowGap = DelveInformantLayout.rowGap or 18
+DelveInformantLayout.shiftSeconds = DelveInformantLayout.shiftSeconds or 0.25
+DelveInformantLayout.entries = DelveInformantLayout.entries or {}
+DelveInformantLayout.base = DelveInformantLayout.base or {
+  point = "CENTER",
+  relativePoint = "CENTER",
+  x = 0,
+  y = 0,
+}
+
+local function LayoutClamp01(value)
+  if value < 0 then return 0 end
+  if value > 1 then return 1 end
+  return value
+end
+
+local function LayoutSnap(frame, value)
+  if DelveInformantUtils and DelveInformantUtils.Snap then
+    return DelveInformantUtils.Snap(frame, value)
+  end
+  return value or 0
+end
+
+function DelveInformantLayout.Register(key, frame, order, options)
+  if not key or not frame then
+    return nil
+  end
+
+  options = options or {}
+  local entry = DelveInformantLayout.entries[key] or {}
+  entry.key = key
+  entry.frame = frame
+  entry.order = tonumber(order) or 100
+  entry.rowHeight = tonumber(options.rowHeight) or (frame.GetHeight and frame:GetHeight()) or 25
+  entry.rowGap = tonumber(options.rowGap) or DelveInformantLayout.rowGap
+  entry.currentOffsetY = entry.currentOffsetY or 0
+  entry.targetOffsetY = entry.targetOffsetY or entry.currentOffsetY
+  entry.animFromOffsetY = entry.currentOffsetY
+  entry.animElapsed = 0
+  entry.animDuration = 0
+  entry.animating = false
+  entry.active = entry.active or false
+  DelveInformantLayout.entries[key] = entry
+  DelveInformantLayout.Apply()
+  return entry
+end
+
+function DelveInformantLayout.SetBaseFromFrame(frame)
+  if not frame or not frame.GetPoint then
+    return
+  end
+
+  local point, _, relativePoint, x, y = frame:GetPoint(1)
+  if not point then
+    return
+  end
+
+  DelveInformantLayout.base.point = point
+  DelveInformantLayout.base.relativePoint = relativePoint or point
+  DelveInformantLayout.base.x = LayoutSnap(frame, x or 0)
+  DelveInformantLayout.base.y = LayoutSnap(frame, y or 0)
+  DelveInformantLayout.Apply(true)
+end
+
+function DelveInformantLayout.SetBase(point, relativePoint, x, y)
+  DelveInformantLayout.base.point = point or DelveInformantLayout.base.point or "CENTER"
+  DelveInformantLayout.base.relativePoint = relativePoint or DelveInformantLayout.base.relativePoint or DelveInformantLayout.base.point
+  DelveInformantLayout.base.x = tonumber(x) or 0
+  DelveInformantLayout.base.y = tonumber(y) or 0
+  DelveInformantLayout.Apply(true)
+end
+
+function DelveInformantLayout.SetActive(key, active)
+  local entry = DelveInformantLayout.entries[key]
+  if not entry then
+    return
+  end
+
+  active = not not active
+  if entry.active == active then
+    return
+  end
+
+  entry.active = active
+  DelveInformantLayout.UpdateTargets(false)
+end
+
+local function GetActiveEntriesSorted()
+  local activeEntries = {}
+  for _, entry in pairs(DelveInformantLayout.entries) do
+    if entry.active then
+      activeEntries[#activeEntries + 1] = entry
+    end
+  end
+
+  table.sort(activeEntries, function(a, b)
+    if a.order == b.order then
+      return tostring(a.key) < tostring(b.key)
+    end
+    return a.order < b.order
+  end)
+
+  return activeEntries
+end
+
+function DelveInformantLayout.UpdateTargets(snapNow)
+  local activeEntries = GetActiveEntriesSorted()
+  local offsetY = 0
+
+  for i = 1, #activeEntries do
+    local entry = activeEntries[i]
+    local target = offsetY
+    entry.targetOffsetY = target
+
+    if snapNow then
+      entry.currentOffsetY = target
+      entry.animating = false
+    elseif math.abs((entry.currentOffsetY or 0) - target) > 0.001 then
+      entry.animFromOffsetY = entry.currentOffsetY or 0
+      entry.animElapsed = 0
+      entry.animDuration = DelveInformantLayout.shiftSeconds
+      entry.animating = entry.animDuration > 0
+      if not entry.animating then
+        entry.currentOffsetY = target
+      end
+    end
+
+    offsetY = offsetY - ((entry.rowHeight or 25) + (entry.rowGap or DelveInformantLayout.rowGap))
+  end
+
+  DelveInformantLayout.Apply(false)
+end
+
+function DelveInformantLayout.Apply(snapNow)
+  if DelveInformantLayout.suspended then
+    return
+  end
+
+  if DelveInformantLayout.UpdateTargets and snapNow then
+    DelveInformantLayout.UpdateTargets(true)
+  end
+
+  local base = DelveInformantLayout.base
+  for _, entry in pairs(DelveInformantLayout.entries) do
+    local frame = entry.frame
+    if frame and frame.ClearAllPoints and frame.SetPoint then
+      frame:ClearAllPoints()
+      local x = LayoutSnap(frame, base.x or 0)
+      local y = LayoutSnap(frame, (base.y or 0) + (entry.currentOffsetY or 0))
+      frame:SetPoint(base.point or "CENTER", UIParent, base.relativePoint or base.point or "CENTER", x, y)
+    end
+  end
+end
+
+function DelveInformantLayout.OnUpdate(dt)
+  local anyAnimating = false
+
+  for _, entry in pairs(DelveInformantLayout.entries) do
+    if entry.animating then
+      entry.animElapsed = (entry.animElapsed or 0) + (dt or 0)
+      local duration = entry.animDuration or 0
+      local t = 1
+      if duration > 0 then
+        t = LayoutClamp01(entry.animElapsed / duration)
+      end
+      entry.currentOffsetY = (entry.animFromOffsetY or 0) + ((entry.targetOffsetY or 0) - (entry.animFromOffsetY or 0)) * t
+      if t >= 1 then
+        entry.currentOffsetY = entry.targetOffsetY or entry.currentOffsetY or 0
+        entry.animating = false
+      else
+        anyAnimating = true
+      end
+    end
+  end
+
+  if anyAnimating then
+    DelveInformantLayout.Apply(false)
+  end
+end
+
+if not DelveInformantLayout.driver then
+  DelveInformantLayout.driver = CreateFrame("Frame")
+  DelveInformantLayout.driver:SetScript("OnUpdate", function(_, dt)
+    DelveInformantLayout.OnUpdate(dt)
+  end)
+end
+
+_G.DelveInformantLayout = DelveInformantLayout
