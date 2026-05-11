@@ -7,13 +7,17 @@ DelveInformantDB.ValeeraSanguinar = DelveInformantDB.ValeeraSanguinar or {}
 local db = DelveInformantDB.ValeeraSanguinar
 local Crayon = LibStub("LibCrayon-3.0")
 local DIUtils = _G.DelveInformantUtils or {}
+local DILayout = _G.DelveInformantLayout
 
 local UPDATE_INTERVAL = 0.25
 local FADE_IN_SECONDS = 1.0
 local FADE_OUT_SECONDS = FADE_IN_SECONDS
 
 local BAR_WIDTH, BAR_HEIGHT = 250, 25
-local BAR_POINT, BAR_X, BAR_Y = "CENTER", 0, -34
+local BAR_POINT, BAR_X, BAR_Y = "CENTER", 0, -43
+local LAYOUT_KEY = "valeera"
+local LAYOUT_ORDER = 20
+local LAYOUT_ROW_GAP = 18
 
 local BG_R, BG_G, BG_B, BG_A = 0, 0, 0, 0.35
 local BORDER_R, BORDER_G, BORDER_B, BORDER_A = 0.65, 0.05, 0.05, 0.9
@@ -210,6 +214,12 @@ local Clamp = DIUtils.Clamp or function(v, lo, hi)
   return v
 end
 
+local function SetLayoutActive(active)
+  if DILayout and DILayout.SetActive then
+    DILayout.SetActive(LAYOUT_KEY, active)
+  end
+end
+
 local function StartFadeTo(targetAlpha, duration, hideOnDone)
   targetAlpha = Clamp(targetAlpha or 0, 0, 1)
   duration = tonumber(duration) or 0
@@ -240,11 +250,13 @@ local function StartFadeTo(targetAlpha, duration, hideOnDone)
     fadeActive = false
     if fadeHideOnDone and fadeTo <= 0 then
       f:Hide()
+      SetLayoutActive(false)
     end
   end
 end
 
 local function ShowFrameWithFadeIfNeeded()
+  SetLayoutActive(true)
   if (fadeActive and fadeTo == 1 and not fadeHideOnDone) or ((f:GetAlpha() or 0) >= 0.999 and f:IsShown() and not fadeActive) then
     return
   end
@@ -256,6 +268,7 @@ local function HideFrameWithFade()
     f:SetAlpha(0)
     f:Hide()
     fadeActive = false
+    SetLayoutActive(false)
     return
   end
 
@@ -524,6 +537,7 @@ f:SetScript("OnUpdate", function(_, dt)
       fadeActive = false
       if fadeHideOnDone and fadeTo <= 0 then
         f:Hide()
+        SetLayoutActive(false)
       end
     else
       local t = fadeElapsed / fadeDuration
@@ -533,6 +547,7 @@ f:SetScript("OnUpdate", function(_, dt)
         fadeActive = false
         if fadeHideOnDone and fadeTo <= 0 then
           f:Hide()
+          SetLayoutActive(false)
         end
       end
     end
@@ -547,5 +562,8 @@ end)
 
 EnsureDBDefaults()
 RestorePosition()
+if DILayout and DILayout.Register then
+  DILayout.Register(LAYOUT_KEY, f, LAYOUT_ORDER, { rowHeight = BAR_HEIGHT, rowGap = LAYOUT_ROW_GAP })
+end
 SetLocked(db.locked)
 UpdateDisplay()

@@ -18,6 +18,7 @@ DelveInformantDB.NemesisStrongbox = DelveInformantDB.NemesisStrongbox or {}
 
 local db = DelveInformantDB.NemesisStrongbox
 local DIUtils = _G.DelveInformantUtils or {}
+local DILayout = _G.DelveInformantLayout
 
 -- =========================
 -- LibSharedMedia (optional)
@@ -72,6 +73,9 @@ local MSG_FADE_SECONDS   = 0.5
 local BAR_WIDTH, BAR_HEIGHT = 250, 25
 local BAR_POINT, BAR_X, BAR_Y = "CENTER", 0, 0
 local BAR_SCALE = 1
+local LAYOUT_KEY = "strongbox"
+local LAYOUT_ORDER = 10
+local LAYOUT_ROW_GAP = 18
 
 local TICK_WIDTH = 28
 local TICK_HEIGHT_EXTRA = 8
@@ -327,6 +331,12 @@ local fadeHideOnDone = false
 local lastShownState = false
 local ResetToHiddenEmptyState
 
+local function SetLayoutActive(active)
+  if DILayout and DILayout.SetActive then
+    DILayout.SetActive(LAYOUT_KEY, active)
+  end
+end
+
 local function StartFadeTo(targetAlpha, duration, hideOnDone)
   targetAlpha = Clamp(targetAlpha or 0, 0, 1)
   duration = tonumber(duration) or 0
@@ -357,6 +367,7 @@ local function StartFadeTo(targetAlpha, duration, hideOnDone)
     fadeActive = false
     if fadeHideOnDone and fadeTo <= 0 then
       f:Hide()
+      SetLayoutActive(false)
     end
   end
 end
@@ -381,6 +392,7 @@ local function HideFrameWithFade()
     f:SetAlpha(0)
     f:Hide()
     StopFade()
+    SetLayoutActive(false)
     return
   end
 
@@ -691,10 +703,21 @@ local function ApplyLockState()
   else
     f:EnableMouse(true)
     f:RegisterForDrag("LeftButton")
-    f:SetScript("OnDragStart", function(self) self:StartMoving() end)
+    f:SetScript("OnDragStart", function(self)
+      if DILayout then
+        DILayout.suspended = true
+      end
+      self:StartMoving()
+    end)
     f:SetScript("OnDragStop", function(self)
       self:StopMovingOrSizing()
+      if DILayout then
+        DILayout.suspended = false
+      end
       SavePosition()
+      if DILayout and DILayout.SetBaseFromFrame then
+        DILayout.SetBaseFromFrame(f)
+      end
       NS_Print("Position saved.")
       PositionAllTicks()
     end)
@@ -854,12 +877,14 @@ local function ShowFrameWithFadeIfNeeded(dataFresh, foundFresh, totalFresh)
     ApplyVisualsFromFound(foundFresh or lastGoodFound, totalFresh or lastGoodTotal, true)
 
     lastShownState = true
+    SetLayoutActive(true)
     f:SetAlpha(0)
     f:Show()
     StartFadeTo(1, FADE_IN_SECONDS, false)
     return
   end
 
+  SetLayoutActive(true)
   f:Show()
   if (fadeActive and fadeTo == 1 and not fadeHideOnDone) or ((f:GetAlpha() or 0) >= 0.999 and not fadeActive) then
     return
@@ -936,6 +961,7 @@ f:SetScript("OnUpdate", function(self, dt)
       fadeActive = false
       if fadeHideOnDone and fadeTo <= 0 then
         f:Hide()
+        SetLayoutActive(false)
       end
     else
       local t = fadeElapsed / fadeDuration
@@ -946,6 +972,7 @@ f:SetScript("OnUpdate", function(self, dt)
         fadeActive = false
         if fadeHideOnDone and fadeTo <= 0 then
           f:Hide()
+          SetLayoutActive(false)
         end
       end
     end
@@ -1055,6 +1082,10 @@ SlashCmdList["DELVEINFORMANTMOVE"] = function() SetLocked(not db.locked) end
 -- =========================
 EnsureDBDefaults()
 RestorePosition()
+if DILayout and DILayout.Register then
+  DILayout.SetBaseFromFrame(f)
+  DILayout.Register(LAYOUT_KEY, f, LAYOUT_ORDER, { rowHeight = BAR_HEIGHT, rowGap = LAYOUT_ROW_GAP })
+end
 ApplyLockState()
 
 StartGraceWindow()
