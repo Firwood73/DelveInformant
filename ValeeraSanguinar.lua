@@ -17,7 +17,9 @@ local BAR_WIDTH, BAR_HEIGHT = 250, 25
 local BAR_POINT, BAR_X, BAR_Y = "CENTER", 0, -43
 local LAYOUT_KEY = "valeera"
 local LAYOUT_ORDER = 20
+local LAYOUT_TOP_TEXT_HEIGHT = 18
 local LAYOUT_ROW_GAP = 18
+local LAYOUT_ROW_HEIGHT = BAR_HEIGHT + LAYOUT_TOP_TEXT_HEIGHT
 
 local BG_R, BG_G, BG_B, BG_A = 0, 0, 0, 0.35
 local BORDER_R, BORDER_G, BORDER_B, BORDER_A = 0.65, 0.05, 0.05, 0.9
@@ -563,7 +565,7 @@ end)
 EnsureDBDefaults()
 RestorePosition()
 if DILayout and DILayout.Register then
-  DILayout.Register(LAYOUT_KEY, f, LAYOUT_ORDER, { rowHeight = BAR_HEIGHT, rowGap = LAYOUT_ROW_GAP })
+  DILayout.Register(LAYOUT_KEY, f, LAYOUT_ORDER, { rowHeight = LAYOUT_ROW_HEIGHT, rowGap = LAYOUT_ROW_GAP })
 end
 SetLocked(db.locked)
 UpdateDisplay()
