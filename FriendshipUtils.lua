@@ -257,6 +257,9 @@ DelveInformantLayout.base = DelveInformantLayout.base or {
 }
 DelveInformantLayout.containerPadding = DelveInformantLayout.containerPadding or 8
 
+local GetContainerLayoutMetrics
+local UpdateGroupDrag
+
 local function LayoutClamp01(value)
   if value < 0 then return 0 end
   if value > 1 then return 1 end
@@ -283,10 +286,16 @@ local function EnsureLayoutDBDefaults()
   DelveInformantDB.Layout = DelveInformantDB.Layout or {}
 
   if DelveInformantDB.Layout.x == nil then
+    local containerPos = type(DelveInformantDB.Layout.container) == "table" and DelveInformantDB.Layout.container
     local strongboxDB = DelveInformantDB.NemesisStrongbox
     local valeeraDB = DelveInformantDB.ValeeraSanguinar
     local strongboxPos = type(strongboxDB) == "table" and strongboxDB.pos
-    if type(strongboxPos) == "table" and strongboxPos.x ~= nil then
+    if type(containerPos) == "table" and containerPos.x ~= nil then
+      DelveInformantDB.Layout.point = containerPos.point
+      DelveInformantDB.Layout.relativePoint = containerPos.relativePoint
+      DelveInformantDB.Layout.x = containerPos.x
+      DelveInformantDB.Layout.y = (tonumber(containerPos.y) or 0) - (tonumber(containerPos.centerOffsetY) or 0)
+    elseif type(strongboxPos) == "table" and strongboxPos.x ~= nil then
       DelveInformantDB.Layout.point = strongboxPos.point
       DelveInformantDB.Layout.relativePoint = strongboxPos.relativePoint
       DelveInformantDB.Layout.x = strongboxPos.x
@@ -370,21 +379,81 @@ local function SaveLayoutBase()
   local base = DelveInformantLayout.base
   db.point = base.point or "CENTER"
   db.relativePoint = base.relativePoint or db.point
-  db.x = base.x or 0
-  db.y = base.y or 0
+  db.x = LayoutSnap(UIParent, base.x or 0)
+  db.y = LayoutSnap(UIParent, base.y or 0)
+
+  if DelveInformantLayout.container and GetContainerLayoutMetrics then
+    local _, _, centerOffsetY = GetContainerLayoutMetrics(DelveInformantLayout.container)
+    db.container = db.container or {}
+    db.container.point = db.point
+    db.container.relativePoint = db.relativePoint
+    db.container.x = db.x
+    db.container.y = LayoutSnap(DelveInformantLayout.container, db.y + (centerOffsetY or 0))
+    db.container.centerOffsetY = LayoutSnap(DelveInformantLayout.container, centerOffsetY or 0)
+  end
+
   SaveEntryPositionsToDB()
 end
 
-function DelveInformantLayout.RestoreBase(defaultPoint, defaultRelativePoint, defaultX, defaultY)
+local function SaveCurrentLayoutPosition()
+  if DelveInformantLayout.drag and UpdateGroupDrag then
+    UpdateGroupDrag()
+  end
+
+  local container = DelveInformantLayout.container
+  if container and container.GetPoint and GetContainerLayoutMetrics and (not container.IsShown or container:IsShown()) then
+    local point, _, relativePoint, x, y = container:GetPoint(1)
+    if point then
+      local _, _, centerOffsetY = GetContainerLayoutMetrics(container)
+      local base = DelveInformantLayout.base
+      base.point = point
+      base.relativePoint = relativePoint or point
+      base.x = LayoutSnap(container, x or 0)
+      base.y = LayoutSnap(container, (y or 0) - (centerOffsetY or 0))
+    end
+  end
+
+  DelveInformantLayout.drag = nil
+  SaveLayoutBase()
+end
+
+local function RestoreLayoutBaseFromDB(defaultPoint, defaultRelativePoint, defaultX, defaultY)
   EnsureLayoutDBDefaults()
   local db = DelveInformantDB.Layout
-  DelveInformantLayout.base.point = db.point or defaultPoint or DelveInformantLayout.base.point or "CENTER"
-  DelveInformantLayout.base.relativePoint = db.relativePoint or defaultRelativePoint or DelveInformantLayout.base.relativePoint or DelveInformantLayout.base.point
-  DelveInformantLayout.base.x = tonumber(db.x)
-  if DelveInformantLayout.base.x == nil then DelveInformantLayout.base.x = tonumber(defaultX) or 0 end
-  DelveInformantLayout.base.y = tonumber(db.y)
-  if DelveInformantLayout.base.y == nil then DelveInformantLayout.base.y = tonumber(defaultY) or 0 end
-  SaveLayoutBase()
+  local hasSavedPosition = type(db) == "table" and db.x ~= nil and db.y ~= nil
+  local base = DelveInformantLayout.base
+
+  base.point = (hasSavedPosition and db.point) or defaultPoint or base.point or "CENTER"
+  base.relativePoint = (hasSavedPosition and db.relativePoint) or defaultRelativePoint or base.relativePoint or base.point
+  base.x = tonumber(hasSavedPosition and db.x or defaultX)
+  if base.x == nil then base.x = 0 end
+  base.y = tonumber(hasSavedPosition and db.y or defaultY)
+  if base.y == nil then base.y = 0 end
+
+  return hasSavedPosition
+end
+
+function DelveInformantLayout.RestoreBase(defaultPoint, defaultRelativePoint, defaultX, defaultY)
+  local restoredSavedPosition = RestoreLayoutBaseFromDB(defaultPoint, defaultRelativePoint, defaultX, defaultY)
+  if not restoredSavedPosition then
+    SaveLayoutBase()
+  end
+end
+
+function DelveInformantLayout.RestoreSavedPosition(applyNow)
+  if DelveInformantLayout.drag or DelveInformantLayout.IsMoveMode() then
+    return false
+  end
+
+  if not RestoreLayoutBaseFromDB() then
+    return false
+  end
+
+  if applyNow ~= false and DelveInformantLayout.Apply then
+    DelveInformantLayout.Apply(true)
+  end
+
+  return true
 end
 
 function DelveInformantLayout.IsLocked()
@@ -439,7 +508,14 @@ end
 
 function DelveInformantLayout.SetLocked(isLocked, silent)
   EnsureLayoutDBDefaults()
-  DelveInformantDB.locked = not not isLocked
+  local locking = not not isLocked
+  if locking then
+    SaveCurrentLayoutPosition()
+  else
+    RestoreLayoutBaseFromDB()
+  end
+
+  DelveInformantDB.locked = locking
   if type(DelveInformantDB.NemesisStrongbox) == "table" then
     DelveInformantDB.NemesisStrongbox.locked = DelveInformantDB.locked
   end
@@ -625,6 +701,39 @@ local function GetFrameSize(frame)
   return tonumber(width) or 0, tonumber(height) or 0
 end
 
+GetContainerLayoutMetrics = function(container)
+  local activeEntries = GetActiveEntriesSorted()
+  local padding = DelveInformantLayout.containerPadding or 10
+  local maxWidth = 0
+  local topOffset
+  local bottomOffset
+
+  for i = 1, #activeEntries do
+    local entry = activeEntries[i]
+    local frameWidth, actualFrameHeight = GetFrameSize(entry.frame)
+    local frameHeight = tonumber(entry.rowHeight) or actualFrameHeight
+    maxWidth = math.max(maxWidth, frameWidth)
+
+    local offset = entry.currentOffsetY or 0
+    local top = offset + (frameHeight / 2)
+    local bottom = offset - (frameHeight / 2)
+    topOffset = topOffset and math.max(topOffset, top) or top
+    bottomOffset = bottomOffset and math.min(bottomOffset, bottom) or bottom
+  end
+
+  if not topOffset or not bottomOffset then
+    maxWidth = 250
+    topOffset = 15
+    bottomOffset = -15
+  end
+
+  local width = LayoutSnap(container or UIParent, maxWidth + (padding * 2))
+  local height = LayoutSnap(container or UIParent, (topOffset - bottomOffset) + (padding * 2) + 16)
+  local centerOffsetY = ((topOffset + bottomOffset) / 2) - 8
+
+  return math.max(width, 180), math.max(height, 40), centerOffsetY
+end
+
 function DelveInformantLayout.EnsureContainer()
   if DelveInformantLayout.container then
     return DelveInformantLayout.container
@@ -700,37 +809,10 @@ function DelveInformantLayout.UpdateContainer()
     return
   end
 
-  local activeEntries = GetActiveEntriesSorted()
-  local padding = DelveInformantLayout.containerPadding or 10
-  local maxWidth = 0
-  local topOffset
-  local bottomOffset
-
-  for i = 1, #activeEntries do
-    local entry = activeEntries[i]
-    local frameWidth, actualFrameHeight = GetFrameSize(entry.frame)
-    local frameHeight = tonumber(entry.rowHeight) or actualFrameHeight
-    maxWidth = math.max(maxWidth, frameWidth)
-
-    local offset = entry.currentOffsetY or 0
-    local top = offset + (frameHeight / 2)
-    local bottom = offset - (frameHeight / 2)
-    topOffset = topOffset and math.max(topOffset, top) or top
-    bottomOffset = bottomOffset and math.min(bottomOffset, bottom) or bottom
-  end
-
-  if not topOffset or not bottomOffset then
-    maxWidth = 250
-    topOffset = 15
-    bottomOffset = -15
-  end
-
-  local width = LayoutSnap(container, maxWidth + (padding * 2))
-  local height = LayoutSnap(container, (topOffset - bottomOffset) + (padding * 2) + 16)
-  local centerOffsetY = ((topOffset + bottomOffset) / 2) - 8
+  local width, height, centerOffsetY = GetContainerLayoutMetrics(container)
   local base = DelveInformantLayout.base
 
-  container:SetSize(math.max(width, 180), math.max(height, 40))
+  container:SetSize(width, height)
   container:ClearAllPoints()
   container:SetPoint(base.point or "CENTER", UIParent, base.relativePoint or base.point or "CENTER", LayoutSnap(container, base.x or 0), LayoutSnap(container, (base.y or 0) + centerOffsetY))
   container:EnableMouse(true)
@@ -784,13 +866,12 @@ function DelveInformantLayout.StopGroupDrag()
     return
   end
 
-  DelveInformantLayout.drag = nil
-  SaveLayoutBase()
+  SaveCurrentLayoutPosition()
   DelveInformantLayout.Apply(true)
   DI_Print("Position saved.")
 end
 
-local function UpdateGroupDrag()
+UpdateGroupDrag = function()
   local drag = DelveInformantLayout.drag
   if not drag or not GetCursorPosition then
     return
@@ -845,6 +926,22 @@ if not DelveInformantLayout.driver then
     DelveInformantLayout.OnUpdate(dt)
   end)
 end
+
+DelveInformantLayout.driver:RegisterEvent("PLAYER_ENTERING_WORLD")
+DelveInformantLayout.driver:RegisterEvent("ZONE_CHANGED_NEW_AREA")
+DelveInformantLayout.driver:SetScript("OnEvent", function()
+  local function restoreSavedPosition()
+    if DelveInformantLayout.RestoreSavedPosition then
+      DelveInformantLayout.RestoreSavedPosition(true)
+    end
+  end
+
+  if C_Timer and C_Timer.After then
+    C_Timer.After(0.1, restoreSavedPosition)
+  else
+    restoreSavedPosition()
+  end
+end)
 
 SLASH_DELVEINFORMANTLOCK1 = "/dilock"
 SlashCmdList["DELVEINFORMANTLOCK"] = function() DelveInformantLayout.SetLocked(true) end

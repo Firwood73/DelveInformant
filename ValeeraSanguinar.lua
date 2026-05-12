@@ -429,11 +429,12 @@ local function ApplyLockState(locked)
   helperText:SetShown(not db.locked)
 
   if db.locked then
-    f:EnableMouse(false)
+    -- Keep mouse input active while locked so hover can show exact progress.
+    f:EnableMouse(true)
     f:RegisterForDrag()
     f:SetScript("OnDragStart", nil)
     f:SetScript("OnDragStop", nil)
-    dragSurface:EnableMouse(false)
+    dragSurface:EnableMouse(true)
     dragSurface:RegisterForDrag()
     dragSurface:SetScript("OnDragStart", nil)
     dragSurface:SetScript("OnDragStop", nil)
