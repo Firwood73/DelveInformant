@@ -532,6 +532,13 @@ local function UpdateDisplay()
   local level = tonumber(companionInfo.level)
   local earned = companionInfo.currentXP
   local needed = companionInfo.totalXP
+  local currentMaxLevel = tonumber(GetCurrentSeasonMaxLevel())
+
+  if currentMaxLevel and currentMaxLevel > 0 and level and level >= currentMaxLevel then
+    HideFrameWithFade()
+    return
+  end
+
   local isCapped = needed <= 0
   local pct = 1
 
@@ -551,7 +558,6 @@ local function UpdateDisplay()
   lastNeeded = needed
   lastIsCapped = isCapped
 
-  local currentMaxLevel = tonumber(GetCurrentSeasonMaxLevel())
   local HEX_LEVELVALUE = Crayon:GetThresholdHexColor(level, currentMaxLevel)
 
   nameText:SetText(VALEERA_NAME)
