@@ -1,11 +1,47 @@
 -- ValeeraSanguinar.lua
 -- Companion progress bar for Valeera Sanguinar via friendship reputation APIs.
 
+local ADDON_NAME = ...
+
 DelveInformantDB = DelveInformantDB or {}
 DelveInformantDB.ValeeraSanguinar = DelveInformantDB.ValeeraSanguinar or {}
 
+-- NOTE: this table is replaced when SavedVariables load (after this chunk
+-- runs); EnsureDBDefaults() re-binds `db` to the live table on ADDON_LOADED.
 local db = DelveInformantDB.ValeeraSanguinar
-local Crayon = LibStub("LibCrayon-3.0")
+
+-- LibCrayon is not embedded and is not an OptionalDep, so it may be absent.
+-- Fetch it silently and fall back to a minimal stand-in rather than erroring
+-- out of the whole file.
+local Crayon = LibStub and LibStub("LibCrayon-3.0", true)
+if not Crayon then
+  local function ToHex(r, g, b)
+    return string.format("%02x%02x%02x", math.floor(r * 255), math.floor(g * 255), math.floor(b * 255))
+  end
+
+  Crayon = {
+    GetThresholdHexColor = function(_, value, maximum)
+      local max = tonumber(maximum) or 0
+      local pct = 0
+      if max > 0 then
+        pct = (tonumber(value) or 0) / max
+        if pct < 0 then pct = 0 end
+        if pct > 1 then pct = 1 end
+      end
+
+      if pct >= 1 then return ToHex(0, 1, 0) end
+      if pct < 0.5 then return ToHex(1, pct * 2, 0) end
+      return ToHex(2 - (pct * 2), 1, 0)
+    end,
+    Colorize = function(_, hex, text)
+      return "|cff" .. tostring(hex) .. tostring(text) .. "|r"
+    end,
+    Green = function(_, text)
+      return "|cff00ff00" .. tostring(text) .. "|r"
+    end,
+  }
+end
+
 local DIUtils = _G.DelveInformantUtils or {}
 local DILayout = _G.DelveInformantLayout
 
@@ -86,15 +122,42 @@ local function IsValeeraFaction(factionName, factionID, targetFactionID)
   return string.find(lowered, VALEERA_NAME_KEYWORD, 1, true) ~= nil
 end
 
-local function GetFactionCompanionInfo(targetFactionID)
-  if not GetNumFactions or not GetFactionInfo then
-    return nil
+-- GetNumFactions/GetFactionInfo were removed from retail in favour of
+-- C_Reputation. Prefer the modern API and keep the globals as a fallback for
+-- clients that still expose them.
+local function GetFactionCount()
+  if C_Reputation and C_Reputation.GetNumFactions then
+    return C_Reputation.GetNumFactions() or 0
+  end
+  if _G.GetNumFactions then
+    return _G.GetNumFactions() or 0
+  end
+  return 0
+end
+
+local function GetFactionEntry(index)
+  if C_Reputation and C_Reputation.GetFactionDataByIndex then
+    local data = C_Reputation.GetFactionDataByIndex(index)
+    if not data then
+      return nil
+    end
+    return data.name, data.reaction, data.currentReactionThreshold,
+      data.nextReactionThreshold, data.currentStanding, data.factionID
   end
 
-  local numFactions = GetNumFactions()
+  if _G.GetFactionInfo then
+    local name, _, standingID, barMin, barMax, barValue, _, _, _, _, _, _, _, _, _, _, _, factionID = _G.GetFactionInfo(index)
+    return name, standingID, barMin, barMax, barValue, factionID
+  end
+
+  return nil
+end
+
+local function GetFactionCompanionInfo(targetFactionID)
+  local numFactions = GetFactionCount()
   for i = 1, numFactions do
-    local name, _, standingID, barMin, barMax, barValue, _, _, _, _, _, _, _, _, _, _, _, factionID = GetFactionInfo(i)
-    if IsValeeraFaction(name, factionID, targetFactionID) then
+    local name, standingID, barMin, barMax, barValue, factionID = GetFactionEntry(i)
+    if name and IsValeeraFaction(name, factionID, targetFactionID) then
       local minValue = tonumber(barMin) or 0
       local maxValue = tonumber(barMax) or 0
       local value = tonumber(barValue) or 0
@@ -199,14 +262,13 @@ local function EnsureDBDefaults()
   db = DelveInformantDB.ValeeraSanguinar
 
   if DelveInformantDB.locked == nil then
-    DelveInformantDB.locked = (db.locked ~= nil) and (not not db.locked) or true
+    if db.locked ~= nil then
+      DelveInformantDB.locked = not not db.locked
+    else
+      DelveInformantDB.locked = true
+    end
   end
   db.locked = DelveInformantDB.locked
-
-  if db.point == nil then db.point = BAR_POINT end
-  if db.relativePoint == nil then db.relativePoint = BAR_POINT end
-  if db.x == nil then db.x = BAR_X end
-  if db.y == nil then db.y = BAR_Y end
 
   if type(DelveInformantDB.Layout) ~= "table" then
     DelveInformantDB.Layout = {}
@@ -394,41 +456,39 @@ local function UpdateValueText()
   end
 end
 
+-- Position lives solely in DelveInformantDB.Layout, owned by DelveInformantLayout.
+-- Legacy per-module copies (db.point/x/y) are migrated once by
+-- EnsureLayoutDBDefaults in FriendshipUtils.lua and are no longer written.
 local function RestorePosition()
   EnsureDBDefaults()
-  local layoutPos = DelveInformantDB and DelveInformantDB.Layout
-  local point = (layoutPos and layoutPos.point) or db.point
-  local relativePoint = (layoutPos and layoutPos.relativePoint) or db.relativePoint or point
-  local x = (layoutPos and layoutPos.x) or db.x
-  local y = (layoutPos and layoutPos.y) or db.y
+
+  if DILayout and DILayout.RestoreBase then
+    -- The group base is the strongbox row; this bar's vertical offset is
+    -- derived by the layout, so it must not seed the base with its own
+    -- stacked offset. BAR_Y only applies to the standalone fallback below.
+    DILayout.RestoreBase(BAR_POINT, BAR_POINT, BAR_X, 0)
+    return
+  end
 
   f:ClearAllPoints()
-  local snappedX, snappedY = SnapPoint(f, x, y)
-  f:SetPoint(point, UIParent, relativePoint, snappedX, snappedY)
-end
-
-local function SavePosition()
-  local point, _, relativePoint, x, y = f:GetPoint(1)
-  if point and x and y then
-    db.point = point
-    db.relativePoint = relativePoint or point
-    db.x = Snap(f, x)
-    db.y = Snap(f, y)
-  end
-
-  if DILayout and DILayout.SetBaseFromEntryFrame then
-    DILayout.SetBaseFromEntryFrame(LAYOUT_KEY, f)
-  elseif DILayout and DILayout.SetBaseFromFrame then
-    DILayout.SetBaseFromFrame(f)
-  end
+  local snappedX, snappedY = SnapPoint(f, BAR_X, BAR_Y)
+  f:SetPoint(BAR_POINT, UIParent, BAR_POINT, snappedX, snappedY)
 end
 
 local function ApplyLockState(locked)
-  locked = (locked ~= nil) and locked or (DILayout and DILayout.IsLocked and DILayout.IsLocked()) or db.locked
-  db.locked = locked and true or false
-  helperText:SetShown(not db.locked)
+  if locked == nil then
+    if DILayout and DILayout.IsLocked then
+      locked = DILayout.IsLocked()
+    else
+      locked = db.locked
+    end
+  end
 
-  if db.locked then
+  locked = not not locked
+  db.locked = locked
+  helperText:SetShown(not locked)
+
+  if locked then
     -- Keep mouse input active while locked so hover can show exact progress.
     f:EnableMouse(true)
     f:RegisterForDrag()
@@ -454,7 +514,9 @@ local function ApplyLockState(locked)
         if f.StopMovingOrSizing then
           f:StopMovingOrSizing()
         end
-        SavePosition()
+        if DILayout and DILayout.SetBaseFromEntryFrame then
+          DILayout.SetBaseFromEntryFrame(LAYOUT_KEY, f)
+        end
       end
     end
 
@@ -605,6 +667,7 @@ dragSurface:SetScript("OnLeave", OnLeave)
 
 local evt = CreateFrame("Frame")
 
+evt:RegisterEvent("ADDON_LOADED")
 evt:RegisterEvent("PLAYER_ENTERING_WORLD")
 evt:RegisterEvent("QUEST_TURNED_IN")
 evt:RegisterEvent("CHAT_MSG_COMBAT_FACTION_CHANGE")
@@ -613,7 +676,25 @@ evt:RegisterEvent("PLAYER_LEVEL_UP")
 evt:RegisterEvent("ZONE_CHANGED_NEW_AREA")
 evt:RegisterEvent("PLAYER_REGEN_DISABLED")
 evt:RegisterEvent("PLAYER_REGEN_ENABLED")
-evt:SetScript("OnEvent", function()
+evt:SetScript("OnEvent", function(_, event, loadedAddon)
+  -- SavedVariables land after this file executes, so everything seeded at load
+  -- time came from defaults. Re-bind `db` and re-apply saved state here.
+  if event == "ADDON_LOADED" then
+    if loadedAddon ~= ADDON_NAME then
+      return
+    end
+
+    evt:UnregisterEvent("ADDON_LOADED")
+    EnsureDBDefaults()
+    RestorePosition()
+
+    if DILayout and DILayout.ApplyLockStates then
+      DILayout.ApplyLockStates()
+    else
+      ApplyLockState()
+    end
+  end
+
   UpdateDisplay()
 end)
 
@@ -641,7 +722,11 @@ f:SetScript("OnUpdate", function(_, dt)
       end
     end
   end
+end)
 
+-- The bar frame hides itself, and hidden frames do not run OnUpdate, so the
+-- periodic poll has to live on the always-shown event frame instead.
+evt:SetScript("OnUpdate", function(_, dt)
   elapsed = elapsed + dt
   if elapsed >= UPDATE_INTERVAL then
     elapsed = 0

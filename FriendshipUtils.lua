@@ -1,6 +1,8 @@
 -- FriendshipUtils.lua
 -- Utility slash command for printing friendship reputation progress from gossip context.
 
+local ADDON_NAME = ...
+
 local function ExtractLevelFromReaction(reaction)
   if type(reaction) ~= "string" then
     return nil
@@ -152,6 +154,53 @@ end
 
 _G.DelveInformantUtils = DelveInformantUtils
 
+-- The segmented border art lives in the optional ChatChange addon. When it is
+-- not installed the texture files resolve to nothing and the bars render with
+-- no frame at all, so fall back to a Blizzard backdrop edge instead.
+local SEGMENTED_BORDER_ADDON = "ChatChange"
+local SEGMENTED_BORDER_TEXTURE_PATH = "Interface\\AddOns\\ChatChange\\Textures\\"
+
+local function IsAddOnAvailable(name)
+  local getAddOnInfo = (C_AddOns and C_AddOns.GetAddOnInfo) or _G.GetAddOnInfo
+  if not getAddOnInfo then
+    return false
+  end
+
+  local ok, addonName = pcall(getAddOnInfo, name)
+  return ok and addonName ~= nil
+end
+
+local function CreateBackdropBorder(parentFrame, borderSize, borderAlpha, frameLevelOffset)
+  local borderFrame = CreateFrame("Frame", nil, parentFrame, "BackdropTemplate")
+  borderFrame:SetAllPoints(parentFrame)
+  borderFrame:SetFrameLevel(parentFrame:GetFrameLevel() + frameLevelOffset)
+  borderFrame:EnableMouse(false)
+
+  if borderFrame.SetBackdrop then
+    borderFrame:SetBackdrop({
+      edgeFile = "Interface\\Tooltips\\UI-Tooltip-Border",
+      edgeSize = borderSize + 4,
+    })
+  end
+
+  local function SetColor(r, g, b, a)
+    local alpha = a
+    if alpha == nil then
+      alpha = borderAlpha
+    end
+
+    if borderFrame.SetBackdropBorderColor then
+      borderFrame:SetBackdropBorderColor(r or 1, g or 1, b or 1, alpha)
+    end
+  end
+
+  return {
+    frame = borderFrame,
+    pieces = {},
+    SetColor = SetColor,
+  }
+end
+
 local function CreateSegmentedBorder(parentFrame, options)
   if not parentFrame then
     return nil
@@ -161,9 +210,17 @@ local function CreateSegmentedBorder(parentFrame, options)
 
   local borderSize = tonumber(options.borderSize) or 8
   local borderAlpha = tonumber(options.alpha) or 1
-  local texturePath = options.texturePath or "Interface\\AddOns\\ChatChange\\Textures\\"
+  local texturePath = options.texturePath
   local frameLevelOffset = tonumber(options.frameLevelOffset) or 3
   local drawLayer = options.drawLayer or "BORDER"
+
+  if not texturePath then
+    if IsAddOnAvailable(SEGMENTED_BORDER_ADDON) then
+      texturePath = SEGMENTED_BORDER_TEXTURE_PATH
+    else
+      return CreateBackdropBorder(parentFrame, borderSize, borderAlpha, frameLevelOffset)
+    end
+  end
 
   local borderFrame = CreateFrame("Frame", nil, parentFrame)
   borderFrame:SetAllPoints(parentFrame)
@@ -334,45 +391,6 @@ local function EnsureLayoutDBDefaults()
   end
 end
 
-local function SaveEntryPositionToDB(entry)
-  if not entry or not entry.key then
-    return
-  end
-
-  local base = DelveInformantLayout.base
-  local point = base.point or "CENTER"
-  local relativePoint = base.relativePoint or point
-  local x = LayoutSnap(entry.frame or UIParent, base.x or 0)
-  local y = LayoutSnap(entry.frame or UIParent, (base.y or 0) + (entry.currentOffsetY or 0))
-
-  if entry.key == "strongbox" then
-    DelveInformantDB.NemesisStrongbox = DelveInformantDB.NemesisStrongbox or {}
-    local strongboxDB = DelveInformantDB.NemesisStrongbox
-    strongboxDB.pos = strongboxDB.pos or {}
-    strongboxDB.pos.point = point
-    strongboxDB.pos.relativePoint = relativePoint
-    strongboxDB.pos.x = x
-    strongboxDB.pos.y = y
-    strongboxDB.point = point
-    strongboxDB.relativePoint = relativePoint
-    strongboxDB.x = x
-    strongboxDB.y = y
-  elseif entry.key == "valeera" then
-    DelveInformantDB.ValeeraSanguinar = DelveInformantDB.ValeeraSanguinar or {}
-    local valeeraDB = DelveInformantDB.ValeeraSanguinar
-    valeeraDB.point = point
-    valeeraDB.relativePoint = relativePoint
-    valeeraDB.x = x
-    valeeraDB.y = y
-  end
-end
-
-local function SaveEntryPositionsToDB()
-  for _, entry in pairs(DelveInformantLayout.entries or {}) do
-    SaveEntryPositionToDB(entry)
-  end
-end
-
 local function SaveLayoutBase()
   EnsureLayoutDBDefaults()
   local db = DelveInformantDB.Layout
@@ -391,8 +409,6 @@ local function SaveLayoutBase()
     db.container.y = LayoutSnap(DelveInformantLayout.container, db.y + (centerOffsetY or 0))
     db.container.centerOffsetY = LayoutSnap(DelveInformantLayout.container, centerOffsetY or 0)
   end
-
-  SaveEntryPositionsToDB()
 end
 
 local function SaveCurrentLayoutPosition()
@@ -927,9 +943,25 @@ if not DelveInformantLayout.driver then
   end)
 end
 
+DelveInformantLayout.driver:RegisterEvent("ADDON_LOADED")
 DelveInformantLayout.driver:RegisterEvent("PLAYER_ENTERING_WORLD")
 DelveInformantLayout.driver:RegisterEvent("ZONE_CHANGED_NEW_AREA")
-DelveInformantLayout.driver:SetScript("OnEvent", function()
+DelveInformantLayout.driver:SetScript("OnEvent", function(_, event, loadedAddon)
+  -- SavedVariables are installed into the global environment after our file
+  -- chunk runs, so anything read at load time saw defaults. Re-read here.
+  if event == "ADDON_LOADED" then
+    if loadedAddon ~= ADDON_NAME then
+      return
+    end
+
+    EnsureLayoutDBDefaults()
+    DelveInformantLayout.RestoreSavedPosition(true)
+    DelveInformantLayout.ApplyLockStates()
+    DelveInformantLayout.ApplyMoveModeStates()
+    DelveInformantLayout.UpdateContainer()
+    return
+  end
+
   local function restoreSavedPosition()
     if DelveInformantLayout.RestoreSavedPosition then
       DelveInformantLayout.RestoreSavedPosition(true)
