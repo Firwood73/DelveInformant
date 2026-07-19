@@ -13,9 +13,13 @@
 --   - Before fading the frame IN, bar snaps to the CURRENT parsed value (no showing stale/cached values)
 --   - Supports dynamic layouts for totals 1..4 (0..3 inner dividers)
 
+local ADDON_NAME = ...
+
 DelveInformantDB = DelveInformantDB or {}
 DelveInformantDB.NemesisStrongbox = DelveInformantDB.NemesisStrongbox or {}
 
+-- NOTE: this table is replaced when SavedVariables load (after this chunk
+-- runs); EnsureDBDefaults() re-binds `db` to the live table on ADDON_LOADED.
 local db = DelveInformantDB.NemesisStrongbox
 local DIUtils = _G.DelveInformantUtils or {}
 local DILayout = _G.DelveInformantLayout
@@ -660,7 +664,11 @@ local function EnsureDBDefaults()
   end
 
   if DelveInformantDB.locked == nil then
-    DelveInformantDB.locked = (db.locked ~= nil) and (not not db.locked) or true
+    if db.locked ~= nil then
+      DelveInformantDB.locked = not not db.locked
+    else
+      DelveInformantDB.locked = true
+    end
   end
   db.locked = DelveInformantDB.locked
 
@@ -725,8 +733,16 @@ local function RestorePosition()
 end
 
 local function ApplyLockState(locked)
-  locked = (locked ~= nil) and locked or (DILayout and DILayout.IsLocked and DILayout.IsLocked()) or db.locked
-  db.locked = not not locked
+  if locked == nil then
+    if DILayout and DILayout.IsLocked then
+      locked = DILayout.IsLocked()
+    else
+      locked = db.locked
+    end
+  end
+
+  locked = not not locked
+  db.locked = locked
 
   if locked then
     f:EnableMouse(false)
@@ -1090,13 +1106,6 @@ f:SetScript("OnUpdate", function(self, dt)
       end
     end
   end
-
-  -- periodic update
-  elapsedUpdate = elapsedUpdate + dt
-  if elapsedUpdate >= UPDATE_INTERVAL then
-    elapsedUpdate = 0
-    UpdateDisplay()
-  end
 end)
 
 local function SchedulePostZoneRetries()
@@ -1107,13 +1116,39 @@ local function SchedulePostZoneRetries()
 end
 
 local evt = CreateFrame("Frame")
+evt:RegisterEvent("ADDON_LOADED")
 evt:RegisterEvent("PLAYER_ENTERING_WORLD")
 evt:RegisterEvent("ZONE_CHANGED_NEW_AREA")
 evt:RegisterEvent("SCENARIO_UPDATE")
 evt:RegisterEvent("SPELL_TEXT_UPDATE")
 evt:RegisterEvent("PLAYER_REGEN_DISABLED")
 evt:RegisterEvent("PLAYER_REGEN_ENABLED")
-evt:SetScript("OnEvent", function(_, event)
+evt:SetScript("OnEvent", function(_, event, loadedAddon)
+  -- SavedVariables land after this file executes, so everything seeded at load
+  -- time came from defaults. Re-bind `db` and re-apply saved state here.
+  if event == "ADDON_LOADED" then
+    if loadedAddon ~= ADDON_NAME then
+      return
+    end
+
+    evt:UnregisterEvent("ADDON_LOADED")
+    EnsureDBDefaults()
+    RestorePosition()
+
+    if DILayout and DILayout.RestoreBase then
+      DILayout.RestoreBase(db.point or BAR_POINT, db.relativePoint or BAR_POINT, db.x or BAR_X, db.y or BAR_Y)
+    end
+
+    if DILayout and DILayout.ApplyLockStates then
+      DILayout.ApplyLockStates()
+    else
+      ApplyLockState()
+    end
+
+    UpdateDisplay()
+    return
+  end
+
   if event == "PLAYER_ENTERING_WORLD" or event == "ZONE_CHANGED_NEW_AREA" then
     StartGraceWindow()
     SchedulePostZoneRetries()
@@ -1123,6 +1158,18 @@ evt:SetScript("OnEvent", function(_, event)
     end)
   end
   UpdateDisplay()
+end)
+
+-- The bar frame hides itself, and hidden frames do not run OnUpdate, so the
+-- periodic poll has to live on this always-shown event frame. Keeping it on
+-- the bar meant polling stopped exactly when we needed it to notice the bar
+-- should come back.
+evt:SetScript("OnUpdate", function(_, dt)
+  elapsedUpdate = elapsedUpdate + dt
+  if elapsedUpdate >= UPDATE_INTERVAL then
+    elapsedUpdate = 0
+    UpdateDisplay()
+  end
 end)
 
 -- =========================

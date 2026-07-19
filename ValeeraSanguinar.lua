@@ -1,11 +1,47 @@
 -- ValeeraSanguinar.lua
 -- Companion progress bar for Valeera Sanguinar via friendship reputation APIs.
 
+local ADDON_NAME = ...
+
 DelveInformantDB = DelveInformantDB or {}
 DelveInformantDB.ValeeraSanguinar = DelveInformantDB.ValeeraSanguinar or {}
 
+-- NOTE: this table is replaced when SavedVariables load (after this chunk
+-- runs); EnsureDBDefaults() re-binds `db` to the live table on ADDON_LOADED.
 local db = DelveInformantDB.ValeeraSanguinar
-local Crayon = LibStub("LibCrayon-3.0")
+
+-- LibCrayon is not embedded and is not an OptionalDep, so it may be absent.
+-- Fetch it silently and fall back to a minimal stand-in rather than erroring
+-- out of the whole file.
+local Crayon = LibStub and LibStub("LibCrayon-3.0", true)
+if not Crayon then
+  local function ToHex(r, g, b)
+    return string.format("%02x%02x%02x", math.floor(r * 255), math.floor(g * 255), math.floor(b * 255))
+  end
+
+  Crayon = {
+    GetThresholdHexColor = function(_, value, maximum)
+      local max = tonumber(maximum) or 0
+      local pct = 0
+      if max > 0 then
+        pct = (tonumber(value) or 0) / max
+        if pct < 0 then pct = 0 end
+        if pct > 1 then pct = 1 end
+      end
+
+      if pct >= 1 then return ToHex(0, 1, 0) end
+      if pct < 0.5 then return ToHex(1, pct * 2, 0) end
+      return ToHex(2 - (pct * 2), 1, 0)
+    end,
+    Colorize = function(_, hex, text)
+      return "|cff" .. tostring(hex) .. tostring(text) .. "|r"
+    end,
+    Green = function(_, text)
+      return "|cff00ff00" .. tostring(text) .. "|r"
+    end,
+  }
+end
+
 local DIUtils = _G.DelveInformantUtils or {}
 local DILayout = _G.DelveInformantLayout
 
@@ -199,7 +235,11 @@ local function EnsureDBDefaults()
   db = DelveInformantDB.ValeeraSanguinar
 
   if DelveInformantDB.locked == nil then
-    DelveInformantDB.locked = (db.locked ~= nil) and (not not db.locked) or true
+    if db.locked ~= nil then
+      DelveInformantDB.locked = not not db.locked
+    else
+      DelveInformantDB.locked = true
+    end
   end
   db.locked = DelveInformantDB.locked
 
@@ -424,11 +464,19 @@ local function SavePosition()
 end
 
 local function ApplyLockState(locked)
-  locked = (locked ~= nil) and locked or (DILayout and DILayout.IsLocked and DILayout.IsLocked()) or db.locked
-  db.locked = locked and true or false
-  helperText:SetShown(not db.locked)
+  if locked == nil then
+    if DILayout and DILayout.IsLocked then
+      locked = DILayout.IsLocked()
+    else
+      locked = db.locked
+    end
+  end
 
-  if db.locked then
+  locked = not not locked
+  db.locked = locked
+  helperText:SetShown(not locked)
+
+  if locked then
     -- Keep mouse input active while locked so hover can show exact progress.
     f:EnableMouse(true)
     f:RegisterForDrag()
@@ -605,6 +653,7 @@ dragSurface:SetScript("OnLeave", OnLeave)
 
 local evt = CreateFrame("Frame")
 
+evt:RegisterEvent("ADDON_LOADED")
 evt:RegisterEvent("PLAYER_ENTERING_WORLD")
 evt:RegisterEvent("QUEST_TURNED_IN")
 evt:RegisterEvent("CHAT_MSG_COMBAT_FACTION_CHANGE")
@@ -613,7 +662,25 @@ evt:RegisterEvent("PLAYER_LEVEL_UP")
 evt:RegisterEvent("ZONE_CHANGED_NEW_AREA")
 evt:RegisterEvent("PLAYER_REGEN_DISABLED")
 evt:RegisterEvent("PLAYER_REGEN_ENABLED")
-evt:SetScript("OnEvent", function()
+evt:SetScript("OnEvent", function(_, event, loadedAddon)
+  -- SavedVariables land after this file executes, so everything seeded at load
+  -- time came from defaults. Re-bind `db` and re-apply saved state here.
+  if event == "ADDON_LOADED" then
+    if loadedAddon ~= ADDON_NAME then
+      return
+    end
+
+    evt:UnregisterEvent("ADDON_LOADED")
+    EnsureDBDefaults()
+    RestorePosition()
+
+    if DILayout and DILayout.ApplyLockStates then
+      DILayout.ApplyLockStates()
+    else
+      ApplyLockState()
+    end
+  end
+
   UpdateDisplay()
 end)
 
@@ -641,7 +708,11 @@ f:SetScript("OnUpdate", function(_, dt)
       end
     end
   end
+end)
 
+-- The bar frame hides itself, and hidden frames do not run OnUpdate, so the
+-- periodic poll has to live on the always-shown event frame instead.
+evt:SetScript("OnUpdate", function(_, dt)
   elapsed = elapsed + dt
   if elapsed >= UPDATE_INTERVAL then
     elapsed = 0
