@@ -391,45 +391,6 @@ local function EnsureLayoutDBDefaults()
   end
 end
 
-local function SaveEntryPositionToDB(entry)
-  if not entry or not entry.key then
-    return
-  end
-
-  local base = DelveInformantLayout.base
-  local point = base.point or "CENTER"
-  local relativePoint = base.relativePoint or point
-  local x = LayoutSnap(entry.frame or UIParent, base.x or 0)
-  local y = LayoutSnap(entry.frame or UIParent, (base.y or 0) + (entry.currentOffsetY or 0))
-
-  if entry.key == "strongbox" then
-    DelveInformantDB.NemesisStrongbox = DelveInformantDB.NemesisStrongbox or {}
-    local strongboxDB = DelveInformantDB.NemesisStrongbox
-    strongboxDB.pos = strongboxDB.pos or {}
-    strongboxDB.pos.point = point
-    strongboxDB.pos.relativePoint = relativePoint
-    strongboxDB.pos.x = x
-    strongboxDB.pos.y = y
-    strongboxDB.point = point
-    strongboxDB.relativePoint = relativePoint
-    strongboxDB.x = x
-    strongboxDB.y = y
-  elseif entry.key == "valeera" then
-    DelveInformantDB.ValeeraSanguinar = DelveInformantDB.ValeeraSanguinar or {}
-    local valeeraDB = DelveInformantDB.ValeeraSanguinar
-    valeeraDB.point = point
-    valeeraDB.relativePoint = relativePoint
-    valeeraDB.x = x
-    valeeraDB.y = y
-  end
-end
-
-local function SaveEntryPositionsToDB()
-  for _, entry in pairs(DelveInformantLayout.entries or {}) do
-    SaveEntryPositionToDB(entry)
-  end
-end
-
 local function SaveLayoutBase()
   EnsureLayoutDBDefaults()
   local db = DelveInformantDB.Layout
@@ -448,8 +409,6 @@ local function SaveLayoutBase()
     db.container.y = LayoutSnap(DelveInformantLayout.container, db.y + (centerOffsetY or 0))
     db.container.centerOffsetY = LayoutSnap(DelveInformantLayout.container, centerOffsetY or 0)
   end
-
-  SaveEntryPositionsToDB()
 end
 
 local function SaveCurrentLayoutPosition()

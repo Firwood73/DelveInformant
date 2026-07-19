@@ -94,8 +94,8 @@ local BG_R, BG_G, BG_B, BG_A = 0, 0, 0, 0.35
 local BORDER_R, BORDER_G, BORDER_B, BORDER_A =
   0.592156862745098, 0.5254901960784314, 0.9686274509803922, 0.76
 
-local DEBUG_STEP_LOG = true
-local DEBUG_HIDE_REASONS = true
+local DEBUG_STEP_LOG = false
+local DEBUG_HIDE_REASONS = false
 
 -- =========================
 -- Pixel perfect helpers
@@ -339,6 +339,11 @@ local moveModeActive = false
 local ResetToHiddenEmptyState
 local ApplyVisualsFromFound
 local UpdateDisplay
+
+-- Last successfully parsed reading. Declared up here because ApplyLockState's
+-- drag handlers (defined well above the update logic) need lastGoodTotal.
+local lastGoodFound = 0
+local lastGoodTotal = 0
 
 local function SetLayoutActive(active)
   if DILayout and DILayout.SetActive then
@@ -648,21 +653,6 @@ local function EnsureDBDefaults()
 
   db = DelveInformantDB.NemesisStrongbox
 
-  -- Backward compatibility: older builds stored point data at the top level
-  -- (db.point/db.relativePoint/db.x/db.y) instead of db.pos.*.
-  if type(db.pos) ~= "table" then
-    if db.point and db.relativePoint and db.x ~= nil and db.y ~= nil then
-      db.pos = {
-        point = db.point,
-        relativePoint = db.relativePoint,
-        x = db.x,
-        y = db.y,
-      }
-    else
-      db.pos = {}
-    end
-  end
-
   if DelveInformantDB.locked == nil then
     if db.locked ~= nil then
       DelveInformantDB.locked = not not db.locked
@@ -675,61 +665,19 @@ local function EnsureDBDefaults()
   if type(DelveInformantDB.Layout) ~= "table" then
     DelveInformantDB.Layout = {}
   end
-  if DelveInformantDB.Layout.x == nil and db.pos and db.pos.x ~= nil then
-    DelveInformantDB.Layout.point = db.pos.point
-    DelveInformantDB.Layout.relativePoint = db.pos.relativePoint
-    DelveInformantDB.Layout.x = db.pos.x
-    DelveInformantDB.Layout.y = db.pos.y
-  end
 end
 
-local function SavePosition()
-  local point, _, relativePoint, xOfs, yOfs = f:GetPoint(1)
-  if not point then return end
-
-  relativePoint = relativePoint or point
-  xOfs = Snap(f, xOfs or 0)
-  yOfs = Snap(f, yOfs or 0)
-
-  db.pos = db.pos or {}
-  db.pos.point = point
-  db.pos.relativePoint = relativePoint
-  db.pos.x = xOfs
-  db.pos.y = yOfs
-
-  -- Keep legacy top-level keys in sync for compatibility with older builds/tools
-  -- that still read/write db.point/db.relativePoint/db.x/db.y.
-  db.point = point
-  db.relativePoint = relativePoint
-  db.x = xOfs
-  db.y = yOfs
-
-  if DILayout and DILayout.SetBaseFromEntryFrame then
-    DILayout.SetBaseFromEntryFrame(LAYOUT_KEY, f)
-  elseif DILayout and DILayout.SetBaseFromFrame then
-    DILayout.SetBaseFromFrame(f)
-  end
-end
-
+-- Position lives solely in DelveInformantDB.Layout, owned by DelveInformantLayout.
+-- Legacy per-module copies (db.pos.* and db.point/x/y) are migrated once by
+-- EnsureLayoutDBDefaults in FriendshipUtils.lua and are no longer written.
 local function RestorePosition()
-  local layoutPos = DelveInformantDB and DelveInformantDB.Layout
-  local pos = db.pos
-  local point = (layoutPos and layoutPos.point) or (pos and pos.point) or db.point
-  local relativePoint = (layoutPos and layoutPos.relativePoint) or (pos and pos.relativePoint) or db.relativePoint or point
-  local x = layoutPos and layoutPos.x or (pos and pos.x)
-  local y = layoutPos and layoutPos.y or (pos and pos.y)
-
-  if x == nil then x = db.x end
-  if y == nil then y = db.y end
+  if DILayout and DILayout.RestoreBase then
+    DILayout.RestoreBase(BAR_POINT, BAR_POINT, BAR_X, BAR_Y)
+    return
+  end
 
   f:ClearAllPoints()
-
-  if point and x ~= nil and y ~= nil then
-    f:SetPoint(point, UIParent, relativePoint, Snap(f, x), Snap(f, y))
-  else
-    f:SetPoint(BAR_POINT, UIParent, BAR_POINT, Snap(f, BAR_X), Snap(f, BAR_Y))
-    SavePosition()
-  end
+  f:SetPoint(BAR_POINT, UIParent, BAR_POINT, Snap(f, BAR_X), Snap(f, BAR_Y))
 end
 
 local function ApplyLockState(locked)
@@ -769,9 +717,11 @@ local function ApplyLockState(locked)
         if f.StopMovingOrSizing then
           f:StopMovingOrSizing()
         end
-        SavePosition()
+        if DILayout and DILayout.SetBaseFromEntryFrame then
+          DILayout.SetBaseFromEntryFrame(LAYOUT_KEY, f)
+        end
       end
-      PositionAllTicks()
+      PositionAllTicks(lastGoodTotal)
     end
 
     f:EnableMouse(true)
@@ -869,9 +819,6 @@ end
 -- =========================
 -- Visual state cache
 -- =========================
-local lastGoodFound = 0
-local lastGoodTotal = 0
-
 ApplyVisualsFromFound = function(found, total, snapBarNow)
   found = tonumber(found) or 0
   total = tonumber(total) or 0
@@ -1108,13 +1055,6 @@ f:SetScript("OnUpdate", function(self, dt)
   end
 end)
 
-local function SchedulePostZoneRetries()
-  if not C_Timer or not C_Timer.After then return end
-  C_Timer.After(0.2, UpdateDisplay)
-  C_Timer.After(0.6, UpdateDisplay)
-  C_Timer.After(1.2, UpdateDisplay)
-end
-
 local evt = CreateFrame("Frame")
 evt:RegisterEvent("ADDON_LOADED")
 evt:RegisterEvent("PLAYER_ENTERING_WORLD")
@@ -1135,10 +1075,6 @@ evt:SetScript("OnEvent", function(_, event, loadedAddon)
     EnsureDBDefaults()
     RestorePosition()
 
-    if DILayout and DILayout.RestoreBase then
-      DILayout.RestoreBase(db.point or BAR_POINT, db.relativePoint or BAR_POINT, db.x or BAR_X, db.y or BAR_Y)
-    end
-
     if DILayout and DILayout.ApplyLockStates then
       DILayout.ApplyLockStates()
     else
@@ -1151,7 +1087,6 @@ evt:SetScript("OnEvent", function(_, event, loadedAddon)
 
   if event == "PLAYER_ENTERING_WORLD" or event == "ZONE_CHANGED_NEW_AREA" then
     StartGraceWindow()
-    SchedulePostZoneRetries()
     C_Timer.After(0.1, function()
       ApplyBarPoints()
       PositionAllTicks(lastGoodTotal)
@@ -1177,9 +1112,6 @@ end)
 -- =========================
 EnsureDBDefaults()
 RestorePosition()
-if DILayout and DILayout.RestoreBase then
-  DILayout.RestoreBase(db.point or BAR_POINT, db.relativePoint or BAR_POINT, db.x or BAR_X, db.y or BAR_Y)
-end
 if DILayout and DILayout.Register then
   DILayout.Register(LAYOUT_KEY, f, LAYOUT_ORDER, { rowHeight = LAYOUT_ROW_HEIGHT, rowGap = LAYOUT_ROW_GAP })
 end

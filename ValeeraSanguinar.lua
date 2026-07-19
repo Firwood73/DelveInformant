@@ -122,15 +122,42 @@ local function IsValeeraFaction(factionName, factionID, targetFactionID)
   return string.find(lowered, VALEERA_NAME_KEYWORD, 1, true) ~= nil
 end
 
-local function GetFactionCompanionInfo(targetFactionID)
-  if not GetNumFactions or not GetFactionInfo then
-    return nil
+-- GetNumFactions/GetFactionInfo were removed from retail in favour of
+-- C_Reputation. Prefer the modern API and keep the globals as a fallback for
+-- clients that still expose them.
+local function GetFactionCount()
+  if C_Reputation and C_Reputation.GetNumFactions then
+    return C_Reputation.GetNumFactions() or 0
+  end
+  if _G.GetNumFactions then
+    return _G.GetNumFactions() or 0
+  end
+  return 0
+end
+
+local function GetFactionEntry(index)
+  if C_Reputation and C_Reputation.GetFactionDataByIndex then
+    local data = C_Reputation.GetFactionDataByIndex(index)
+    if not data then
+      return nil
+    end
+    return data.name, data.reaction, data.currentReactionThreshold,
+      data.nextReactionThreshold, data.currentStanding, data.factionID
   end
 
-  local numFactions = GetNumFactions()
+  if _G.GetFactionInfo then
+    local name, _, standingID, barMin, barMax, barValue, _, _, _, _, _, _, _, _, _, _, _, factionID = _G.GetFactionInfo(index)
+    return name, standingID, barMin, barMax, barValue, factionID
+  end
+
+  return nil
+end
+
+local function GetFactionCompanionInfo(targetFactionID)
+  local numFactions = GetFactionCount()
   for i = 1, numFactions do
-    local name, _, standingID, barMin, barMax, barValue, _, _, _, _, _, _, _, _, _, _, _, factionID = GetFactionInfo(i)
-    if IsValeeraFaction(name, factionID, targetFactionID) then
+    local name, standingID, barMin, barMax, barValue, factionID = GetFactionEntry(i)
+    if name and IsValeeraFaction(name, factionID, targetFactionID) then
       local minValue = tonumber(barMin) or 0
       local maxValue = tonumber(barMax) or 0
       local value = tonumber(barValue) or 0
@@ -242,11 +269,6 @@ local function EnsureDBDefaults()
     end
   end
   db.locked = DelveInformantDB.locked
-
-  if db.point == nil then db.point = BAR_POINT end
-  if db.relativePoint == nil then db.relativePoint = BAR_POINT end
-  if db.x == nil then db.x = BAR_X end
-  if db.y == nil then db.y = BAR_Y end
 
   if type(DelveInformantDB.Layout) ~= "table" then
     DelveInformantDB.Layout = {}
@@ -434,33 +456,23 @@ local function UpdateValueText()
   end
 end
 
+-- Position lives solely in DelveInformantDB.Layout, owned by DelveInformantLayout.
+-- Legacy per-module copies (db.point/x/y) are migrated once by
+-- EnsureLayoutDBDefaults in FriendshipUtils.lua and are no longer written.
 local function RestorePosition()
   EnsureDBDefaults()
-  local layoutPos = DelveInformantDB and DelveInformantDB.Layout
-  local point = (layoutPos and layoutPos.point) or db.point
-  local relativePoint = (layoutPos and layoutPos.relativePoint) or db.relativePoint or point
-  local x = (layoutPos and layoutPos.x) or db.x
-  local y = (layoutPos and layoutPos.y) or db.y
+
+  if DILayout and DILayout.RestoreBase then
+    -- The group base is the strongbox row; this bar's vertical offset is
+    -- derived by the layout, so it must not seed the base with its own
+    -- stacked offset. BAR_Y only applies to the standalone fallback below.
+    DILayout.RestoreBase(BAR_POINT, BAR_POINT, BAR_X, 0)
+    return
+  end
 
   f:ClearAllPoints()
-  local snappedX, snappedY = SnapPoint(f, x, y)
-  f:SetPoint(point, UIParent, relativePoint, snappedX, snappedY)
-end
-
-local function SavePosition()
-  local point, _, relativePoint, x, y = f:GetPoint(1)
-  if point and x and y then
-    db.point = point
-    db.relativePoint = relativePoint or point
-    db.x = Snap(f, x)
-    db.y = Snap(f, y)
-  end
-
-  if DILayout and DILayout.SetBaseFromEntryFrame then
-    DILayout.SetBaseFromEntryFrame(LAYOUT_KEY, f)
-  elseif DILayout and DILayout.SetBaseFromFrame then
-    DILayout.SetBaseFromFrame(f)
-  end
+  local snappedX, snappedY = SnapPoint(f, BAR_X, BAR_Y)
+  f:SetPoint(BAR_POINT, UIParent, BAR_POINT, snappedX, snappedY)
 end
 
 local function ApplyLockState(locked)
@@ -502,7 +514,9 @@ local function ApplyLockState(locked)
         if f.StopMovingOrSizing then
           f:StopMovingOrSizing()
         end
-        SavePosition()
+        if DILayout and DILayout.SetBaseFromEntryFrame then
+          DILayout.SetBaseFromEntryFrame(LAYOUT_KEY, f)
+        end
       end
     end
 
